@@ -72,7 +72,7 @@ func (amr *AnsibleModRunner) callShell(stdin []byte, command string, arg ...stri
 			log.Fatal("Unable to pass JSON commands through the STDIN: " + err.Error())
 		}
 		pipe.Close()
-		cmd.Wait()
+		err = cmd.Wait()
 	} else {
 		err = cmd.Run()
 		if err != nil {
