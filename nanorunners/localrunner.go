@@ -2,7 +2,7 @@ package nanocms_runners
 
 import (
 	"bytes"
-	"github.com/isbm/uyuni-ncd/runners/callers"
+	"github.com/isbm/nano-cms/nanorunners/callers"
 	"os/exec"
 	"strings"
 )
@@ -29,7 +29,7 @@ func (lr *LocalRunner) callShell(args interface{}) ([]RunnerHostResult, error) {
 }
 
 func (lr *LocalRunner) callAnsibleModule(name string, kwargs map[string]interface{}) ([]RunnerHostResult, error) {
-	caller := nstcallers.NewAnsibleLocalModuleCaller("/home/bo/work/golang/uyuni-ncd/modules/ansible/helloworld")
+	caller := nanocms_callers.NewAnsibleLocalModuleCaller(name)
 	ret, err := caller.SetArgs(kwargs).Call()
 
 	var errmsg string
