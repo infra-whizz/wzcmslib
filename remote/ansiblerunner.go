@@ -1,3 +1,7 @@
+/*
+Ansible module runner.
+This is
+*/
 package main
 
 import (
@@ -13,6 +17,7 @@ import (
 	"strings"
 )
 
+// AnsibleModule description
 type AnsibleModule struct {
 	Interpreter string
 	Path        string
@@ -20,14 +25,35 @@ type AnsibleModule struct {
 	Argv        map[string]interface{}
 }
 
-type AnsibleModRunner struct {
+// ParseArgs parses ansible runner's arguments and translates them to the Ansible module args for JSON
+func (am *AnsibleModule) ParseArgs() *AnsibleModule {
+	am.Argv = make(map[string]interface{})
+	for _, arg := range os.Args[2:] {
+		if strings.Contains(arg, "=") {
+			_arg := strings.SplitN(arg, "=", 2)
+			vars := make([]string, 0)
+			for _, v := range strings.Split(_arg[1], " ") {
+				if v != "" {
+					vars = append(vars, v)
+				}
+			}
+			am.Argv[_arg[0]] = vars
+		} else {
+			fmt.Println("Wrong argument: ", arg)
+		}
+	}
+	return am
 }
+
+// Ansible module runner
+type AnsibleModRunner struct{}
 
 func NewAnsibleModRunner() *AnsibleModRunner {
 	amr := new(AnsibleModRunner)
 	return amr
 }
 
+// Call shell with stdin pipe (or without, if stdin is a length of zero)
 func (amr *AnsibleModRunner) callShell(stdin []byte, command string, arg ...string) (string, string, error) {
 	var outb bytes.Buffer
 	var errb bytes.Buffer
@@ -41,12 +67,17 @@ func (amr *AnsibleModRunner) callShell(stdin []byte, command string, arg ...stri
 		if err != nil {
 			panic(err)
 		}
-		io.WriteString(pipe, string(stdin)+"\n")
+		_, err = io.WriteString(pipe, string(stdin)+"\n")
+		if err != nil {
+			log.Fatal("Unable to pass JSON commands through the STDIN: " + err.Error())
+		}
 		pipe.Close()
 		cmd.Wait()
-
 	} else {
-		cmd.Run()
+		err = cmd.Run()
+		if err != nil {
+			log.Fatal("Unable to call shell command: " + err.Error())
+		}
 	}
 	return strings.TrimSpace(outb.String()), strings.TrimSpace(errb.String()), err
 }
@@ -84,10 +115,7 @@ func (amr *AnsibleModRunner) FindPythonModule(namespace string) *AnsibleModule {
 
 // CallAnsibleModule calls Ansible Python module locally
 func (amr *AnsibleModRunner) CallAnsibleModule(mod *AnsibleModule) (string, error) {
-	params := map[string]interface{}{
-		"ANSIBLE_MODULE_ARGS": mod.Argv,
-	}
-	data, err := json.Marshal(params)
+	data, err := json.Marshal(map[string]interface{}{"ANSIBLE_MODULE_ARGS": mod.Argv})
 	if err != nil {
 		return "", err
 	}
@@ -102,15 +130,7 @@ func main() {
 	modname := os.Args[1]
 	amr := NewAnsibleModRunner()
 	m := amr.FindPythonModule(modname)
-
-	m.Argv = make(map[string]interface{})
-	for _, arg := range os.Args[2:] {
-		if strings.Contains(arg, "=") {
-			_arg := strings.SplitN(arg, "=", 2)
-			m.Argv[_arg[0]] = strings.Split(_arg[1], " ") // XXX: double spaces
-		} else {
-			fmt.Println("Wrong argument: ", arg)
-		}
+	if m != nil {
+		fmt.Println(amr.CallAnsibleModule(m.ParseArgs()))
 	}
-	fmt.Println(amr.CallAnsibleModule(m))
 }
