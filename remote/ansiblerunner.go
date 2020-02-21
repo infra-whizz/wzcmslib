@@ -74,10 +74,7 @@ func (amr *AnsibleModRunner) callShell(stdin []byte, command string, arg ...stri
 		pipe.Close()
 		err = cmd.Wait()
 	} else {
-		err = cmd.Run()
-		if err != nil {
-			log.Fatal("Unable to call shell command: " + err.Error())
-		}
+		cmd.Run()
 	}
 	return strings.TrimSpace(outb.String()), strings.TrimSpace(errb.String()), err
 }
@@ -131,6 +128,7 @@ func main() {
 	amr := NewAnsibleModRunner()
 	m := amr.FindPythonModule(modname)
 	if m != nil {
-		fmt.Println(amr.CallAnsibleModule(m.ParseArgs()))
+		out, _ := amr.CallAnsibleModule(m.ParseArgs())
+		fmt.Println(out)
 	}
 }
