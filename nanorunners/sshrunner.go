@@ -8,6 +8,12 @@ package nanocms_runners
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/bramvdbogaerde/go-scp"
+	"github.com/bramvdbogaerde/go-scp/auth"
+	"golang.org/x/crypto/ssh"
+	"io/ioutil"
+	"log"
+	"os"
 	"os/user"
 	"path"
 	"strings"
@@ -21,6 +27,8 @@ type SSHRunner struct {
 	_sshverify   bool
 	_user        *user.User
 	_remote_user string
+	_perma_dir   string
+	_static_data string // This is a directory root for runners installation.
 }
 
 func NewSSHRunner() *SSHRunner {
@@ -39,6 +47,32 @@ func NewSSHRunner() *SSHRunner {
 // AddHost appends another remote host
 func (shr *SSHRunner) AddHost(fqdn string) *SSHRunner {
 	shr._hosts = append(shr._hosts, fqdn)
+	return shr
+}
+
+/*
+SetPermanentMode takes a root path where it will will create
+the following structure:
+
+  $ROOT/bin
+	   /etc
+	   /modules
+
+In "bin" directory local runners are stored; "etc" contains
+possible configurations, if any; "modules" will stockpile on demand
+remote modules, if they are downloaded.
+*/
+func (shr *SSHRunner) SetPermanentMode(root string) *SSHRunner {
+	shr._perma_dir = root
+	return shr
+}
+
+// SetStaticDataRoot is a directory where runners and other client-related
+// data is located. Static directory should have a specified structure.
+// For example, for runners it should be "runners/<ARCH>/",
+// e.g. "runners/x86_64/", "runners/arm/" etc.
+func (shr *SSHRunner) SetStaticDataRoot(root string) *SSHRunner {
+	shr._static_data = root
 	return shr
 }
 
@@ -90,7 +124,7 @@ func (shr *SSHRunner) SetSSHPort(port int) *SSHRunner {
 func (shr *SSHRunner) callShell(args interface{}) ([]RunnerHostResult, error) {
 	result := make([]RunnerHostResult, 0)
 	for _, fqdn := range shr._hosts {
-		ret := shr.callHost(fqdn, args)
+		ret := shr.callHost(fqdn, args, false)
 		result = append(result, *ret)
 	}
 	return result, nil
@@ -103,45 +137,112 @@ func (shr *SSHRunner) callAnsibleModule(name string, kwargs map[string]interface
 	name = strings.Replace(name, "ansible.", "", 1)
 	result := make([]RunnerHostResult, 0)
 
-	callerJSON := map[string]interface{}{
-		"ANSIBLE_MODULE_ARGS": kwargs,
-	}
-	data, _ := json.Marshal(callerJSON)
 	for _, fqdn := range shr._hosts {
-		fmt.Println(">>>>>", fqdn, name, string(data))
 		ret := shr.callHost(fqdn, []interface{}{
 			map[interface{}]interface{}{
-				name: fmt.Sprintf("echo '%s' | python3 /usr/lib/python3.6/site-packages/ansible/modules/commands/%s.py", string(data), name),
-			}})
+				name: fmt.Sprintf("%s %s %s", "/opt/nanocms/bin/ansiblerunner", "commands.command", "argv='uname -a'"),
+			}}, true)
 		result = append(result, *ret)
 	}
 	return result, nil
 }
 
+// Installs permanent client
+func (shr *SSHRunner) installPermanentClient(shell *SshShell) {
+	if shr._perma_dir == "" {
+		log.Println("Attempt to install permanent client, but no permanent directory has been given")
+		return
+	}
+
+	if shr._static_data == "" {
+		log.Println("Attempt to install permanent client, but no static data storage directory has been given")
+		return
+	}
+
+	// Create directories
+	for _, dirname := range []string{"", "bin", "etc", "modules"} {
+		session := shell.NewSession()
+		target := path.Join(shr._perma_dir, dirname)
+		_, err := session.Run(fmt.Sprintf("mkdir %s", target))
+		if err != nil {
+			fmt.Println("Errored:", target, err.Error())
+			return
+		}
+	}
+
+	// Get remote architecture
+	arch, _ := shell.NewSession().Run("uname -i")
+	arch = strings.TrimSpace(arch)
+
+	runners, err := ioutil.ReadDir(path.Join(shr._static_data, "runners", arch))
+	if err != nil {
+		panic(err)
+	}
+
+	// Upload runners
+	conf, _ := auth.PrivateKey(shell._user, path.Join(shr._rsapath, "id_rsa"), ssh.InsecureIgnoreHostKey())
+	cnt := scp.NewClient(shell.GetFQDN()+":22", &conf)
+	err = cnt.Connect()
+	if err != nil {
+		panic(err)
+	}
+	defer cnt.Close()
+
+	for _, runnerFile := range runners {
+		src := path.Join(shr._static_data, "runners", arch, runnerFile.Name())
+		dst := path.Join(shr._perma_dir, "bin", path.Base(src))
+		nfo, err := os.Stat(src)
+		if !os.IsNotExist(err) && !nfo.IsDir() {
+			fh, err := os.Open(src)
+			if err != nil {
+				fmt.Println("Error accessing runner:", err.Error())
+			}
+			err = cnt.CopyFile(fh, dst, "0755")
+			if err != nil {
+				fmt.Println("Error copying runner to the remote:", err.Error())
+			}
+			fh.Close()
+		}
+	}
+}
+
 // Call a single host with a series of serial, synchronous commands, ensuring their order.
-func (shr *SSHRunner) callHost(fqdn string, args interface{}) *RunnerHostResult {
+func (shr *SSHRunner) callHost(fqdn string, args interface{}, jsonout bool) *RunnerHostResult {
 	response := make(map[string]RunnerStdResult)
 	result := &RunnerHostResult{
 		Host:     fqdn,
 		Response: response,
 	}
+	remote := NewSshShell(shr._rsapath).SetRemoteUsername(shr._remote_user).SetFQDN(fqdn).
+		SetPort(shr._sshport).SetHostVerification(shr._sshverify).Connect()
+	defer remote.Disconnect()
+
 	for _, command := range args.([]interface{}) {
 		for cid, cmd := range command.(map[interface{}]interface{}) {
-			remote := NewSshShell(shr._rsapath).
-				SetRemoteUsername(shr._remote_user).
-				SetFQDN(fqdn).SetPort(shr._sshport).
-				SetHostVerification(shr._sshverify).
-				Connect()
-			defer remote.Disconnect()
+			log.Println("Calling", cmd)
 			session := remote.NewSession()
 			_, err := session.Run(cmd.(string))
-			out := &RunnerStdResult{
-				Stdout: session.Outbuff.String(),
-				Stderr: session.Errbuff.String(),
+
+			if err != nil && shr._perma_dir != "" {
+				log.Println("First run errored, attempt to install permanent client:", err.Error())
+				shr.installPermanentClient(remote)
+
+				session = remote.NewSession()
+				_, err = session.Run(cmd.(string)) // Second attempt
+			}
+
+			out := &RunnerStdResult{}
+			if !jsonout {
+				out.Stdout = session.Outbuff.String()
+			} else {
+				if err := json.Unmarshal(session.Outbuff.Bytes(), &out.Json); err != nil {
+					log.Println("Erroneous JSON:", err.Error())
+				}
 			}
 			if err != nil {
 				out.Errmsg = err.Error()
 				out.Errcode = ERR_FAILED
+				out.Stderr = session.Errbuff.String()
 			}
 			response[cid.(string)] = *out
 		}
