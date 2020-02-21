@@ -6,6 +6,7 @@
 package nanocms_runners
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/bramvdbogaerde/go-scp"
@@ -16,6 +17,7 @@ import (
 	"os"
 	"os/user"
 	"path"
+	"reflect"
 	"strings"
 )
 
@@ -130,6 +132,24 @@ func (shr *SSHRunner) callShell(args interface{}) ([]RunnerHostResult, error) {
 	return result, nil
 }
 
+// Converts kwargs to a command line
+func (shr *SSHRunner) kwargsToCli(kwargs map[string]interface{}) string {
+	var buff bytes.Buffer
+	for k, v := range kwargs {
+		var pv string
+		if reflect.ValueOf(v).Kind() == reflect.Array {
+			for _, elem := range v.([]interface{}) {
+				pv += elem.(string) + " "
+			}
+			pv = strings.TrimSpace(pv)
+		} else {
+			pv = v.(string)
+		}
+		buff.WriteString(fmt.Sprintf("%s='%s' ", k, pv))
+	}
+	return strings.TrimSpace(buff.String())
+}
+
 // Run ansible module remotely, assuming Ansible is installed there.
 // This runner does not copy anything between the machines, and the Ansible has to be pre-installed already.
 // One way of doing it is to call "shell" command and add it there.
@@ -140,7 +160,7 @@ func (shr *SSHRunner) callAnsibleModule(name string, kwargs map[string]interface
 	for _, fqdn := range shr._hosts {
 		ret := shr.callHost(fqdn, []interface{}{
 			map[interface{}]interface{}{
-				name: fmt.Sprintf("%s %s %s", "/opt/nanocms/bin/ansiblerunner", "commands.command", "argv='uname -a'"),
+				name: fmt.Sprintf("%s %s %s", "/opt/nanocms/bin/ansiblerunner", name, shr.kwargsToCli(kwargs)),
 			}}, true)
 		result = append(result, *ret)
 	}
