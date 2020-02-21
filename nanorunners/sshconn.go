@@ -98,6 +98,11 @@ func (ns *SshShell) SetRSAPubKey(name string) *SshShell {
 	return ns
 }
 
+// GetFQDN of the remote host
+func (ns *SshShell) GetFQDN() string {
+	return ns._fqdn
+}
+
 // Connect opens an SSH connection to the remote machine
 func (ns *SshShell) Connect() *SshShell {
 	if ns._conn != nil {
