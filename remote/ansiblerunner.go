@@ -37,7 +37,11 @@ func (am *AnsibleModule) ParseArgs() *AnsibleModule {
 					vars = append(vars, v)
 				}
 			}
-			am.Argv[_arg[0]] = vars
+			if len(vars) == 1 {
+				am.Argv[_arg[0]] = vars[0]
+			} else {
+				am.Argv[_arg[0]] = vars
+			}
 		} else {
 			fmt.Println("Wrong argument: ", arg)
 		}
