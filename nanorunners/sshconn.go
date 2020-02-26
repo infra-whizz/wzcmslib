@@ -18,6 +18,7 @@ type SshShell struct {
 	_rsa_priv string
 	_rsa_pub  string
 	_user     string
+	_password string
 	_hkb      ssh.HostKeyCallback
 	_conn     *ssh.Client
 	_sessions map[string]*SSHSession
@@ -28,7 +29,6 @@ type SshShell struct {
 // As an example: "/home/someuser/.ssh".
 func NewSshShell(rsa string) *SshShell {
 	ns := new(SshShell)
-	ns._rsa_keys = rsa
 	ns._port = 22
 
 	u, err := user.Current()
@@ -36,6 +36,12 @@ func NewSshShell(rsa string) *SshShell {
 		panic("Unable to obtain current user")
 	}
 	ns._user = u.Username
+
+	if rsa == "" {
+		ns._rsa_keys = path.Join(u.HomeDir, ".ssh")
+	} else {
+		ns._rsa_keys = rsa
+	}
 
 	ns.verifyRSAKeyPath()
 	ns._rsa_priv = "id_rsa"
@@ -53,6 +59,13 @@ func NewSshShell(rsa string) *SshShell {
 // SetRemoteUsername sets remote username. Default is the current username.
 func (ns *SshShell) SetRemoteUsername(username string) *SshShell {
 	ns._user = username
+	return ns
+}
+
+// SetRemotePaassword sets remote password for the username. If password is not set,
+// keypair authentication is used instead.
+func (ns *SshShell) SetRemotePassword(password string) *SshShell {
+	ns._password = password
 	return ns
 }
 
@@ -103,6 +116,29 @@ func (ns *SshShell) GetFQDN() string {
 	return ns._fqdn
 }
 
+// Get client config, based on desired method of the authentication
+func (ns *SshShell) getClientConfig() *ssh.ClientConfig {
+	conf := &ssh.ClientConfig{
+		User:            ns._user,
+		HostKeyCallback: ns._hkb,
+	}
+
+	if ns._password != "" {
+		conf.Auth = []ssh.AuthMethod{
+			ssh.Password(ns._password),
+		}
+	} else {
+		signer, err := ssh.ParsePrivateKey(ns.getFileContent(path.Join(ns._rsa_keys, ns._rsa_priv)))
+		if err != nil {
+			panic("ERROR: Unable to parse private RSA key")
+		}
+		conf.Auth = []ssh.AuthMethod{
+			ssh.PublicKeys(signer),
+		}
+	}
+	return conf
+}
+
 // Connect opens an SSH connection to the remote machine
 func (ns *SshShell) Connect() *SshShell {
 	if ns._conn != nil {
@@ -110,18 +146,7 @@ func (ns *SshShell) Connect() *SshShell {
 	}
 
 	var err error
-	signer, err := ssh.ParsePrivateKey(ns.getFileContent(path.Join(ns._rsa_keys, ns._rsa_priv)))
-	if err != nil {
-		panic("ERROR: Unable to parse private RSA key")
-	}
-	sshconf := &ssh.ClientConfig{
-		User: ns._user,
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(signer),
-		},
-		HostKeyCallback: ns._hkb,
-	}
-	ns._conn, err = ssh.Dial("tcp", fmt.Sprintf("%s:%d", ns._fqdn, ns._port), sshconf)
+	ns._conn, err = ssh.Dial("tcp", fmt.Sprintf("%s:%d", ns._fqdn, ns._port), ns.getClientConfig())
 	if err != nil {
 		log.Println("ERROR: Unable to connect:", err.Error())
 	}
