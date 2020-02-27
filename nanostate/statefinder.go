@@ -6,11 +6,19 @@ package nanocms_state
 
 import (
 	"github.com/go-yaml/yaml"
+	"github.com/isbm/nano-cms/nanoutils"
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
 )
+
+var logger *logrus.Logger
+
+func init() {
+	logger = nanoutils.GetTextLogger(logrus.DebugLevel, os.Stdout)
+}
 
 type NanoStateMeta struct {
 	Id       string
@@ -60,21 +68,25 @@ func (nsf *NanoStateIndex) Index() {
 }
 
 // This only unmarshalls the state and fetches its ID
-func (nsf *NanoStateIndex) getStateId(pth string) string {
+func (nsf *NanoStateIndex) getStateId(pth string) (string, error) {
+	logger.Debugln("Loading state ID by path", pth)
+
 	data, err := ioutil.ReadFile(pth)
 	if err != nil {
-		panic(err)
+		logger.Errorf("Error reading state file '%s': %s", pth, err.Error())
+		return "", err
 	}
 	var state map[string]interface{}
 	err = yaml.Unmarshal(data, &state)
 	if err != nil {
-		panic(err)
+		logger.Errorf("Error loading state '%s': %s", pth, err.Error())
+		return "", err
 	}
 	stateId, ex := state["id"]
 	if !ex {
 		panic("State has no id")
 	}
-	return stateId.(string)
+	return stateId.(string), nil
 }
 
 func (nsf *NanoStateIndex) getPathFiles(root string) {
@@ -84,8 +96,14 @@ func (nsf *NanoStateIndex) getPathFiles(root string) {
 				return err
 			}
 			if !info.IsDir() {
+				stateId, err := nsf.getStateId(pth)
+				if err != nil {
+					logger.Debugln("Skipping state", pth)
+					return nil
+				}
+				// Load state
 				nsm := &NanoStateMeta{
-					Id:       nsf.getStateId(pth),
+					Id:       stateId,
 					Filename: path.Base(pth),
 					Path:     pth,
 					Info:     &info,
