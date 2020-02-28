@@ -1,0 +1,15 @@
+def is_debian():
+    return False
+
+def is_ubuntu():
+    return True
+
+def is_debian_family():
+    return is_debian() or is_ubuntu()
+
+def my_users():
+    users = [
+        {"name": "john", "state": "present"},
+        {"name": "fred", "state": "present"},
+    ]
+    return users
