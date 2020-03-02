@@ -88,6 +88,25 @@ func (tree *OTree) Get(key interface{}, bydefault interface{}) interface{} {
 	return bydefault
 }
 
+// GetBranch of the current tree. If branch is not an OTree object or not found, nil is returned.
+func (tree *OTree) GetBranch(key interface{}) *OTree {
+	obj := tree.Get(key, nil)
+	if reflect.TypeOf(obj).Elem().Kind() == reflect.Struct {
+		return obj.(*OTree)
+	}
+
+	return nil
+}
+
+// GetList returns an object as an array of the interfaces. If an object is not a slice, nil is returned.
+func (tree *OTree) GetList(key interface{}) []interface{} {
+	obj := tree.Get(key, nil)
+	if reflect.TypeOf(obj).Kind() == reflect.Slice {
+		return obj.([]interface{})
+	}
+	return nil
+}
+
 // Check if key is there
 func (tree *OTree) Exists(key interface{}) bool {
 	_, ex := tree._data[key]
