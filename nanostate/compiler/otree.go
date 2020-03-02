@@ -107,6 +107,12 @@ func (tree *OTree) GetList(key interface{}) []interface{} {
 	return nil
 }
 
+// GetString returns a string, blindly assuming it is one.
+// XXX: better implementation needed. :)
+func (tree *OTree) GetString(key interface{}) string {
+	return tree.Get(key, nil).(string)
+}
+
 // Check if key is there
 func (tree *OTree) Exists(key interface{}) bool {
 	_, ex := tree._data[key]
