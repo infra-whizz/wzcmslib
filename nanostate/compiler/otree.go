@@ -6,7 +6,7 @@ import (
 )
 
 /*
-A representation of an object tree, preserving ordering
+A representation of an object tree, preserving ordering.
 */
 
 type OTree struct {
