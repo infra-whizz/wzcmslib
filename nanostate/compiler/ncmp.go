@@ -19,9 +19,10 @@ import (
 type NstCompiler struct {
 	// Index of all states that should be included
 	_states     map[string]*OTree
+	_functions  *CDLFunc
 	_unresolved *RefList
 	tree        *OTree
-	rootId      string
+	rootStateId string
 }
 
 func NewNstCompiler() *NstCompiler {
@@ -29,6 +30,7 @@ func NewNstCompiler() *NstCompiler {
 	nstc.tree = nil
 	nstc._states = make(map[string]*OTree)
 	nstc._unresolved = NewRefList()
+	nstc._functions = NewCDLFunc()
 
 	return nstc
 }
@@ -44,7 +46,9 @@ func (nstc *NstCompiler) LoadFile(nstpath string) error {
 			defer fh.Close()
 			data, err := ioutil.ReadAll(fh)
 			if err == nil {
-				return nstc.LoadBytes(data)
+				id, err := nstc.loadBytes(data)
+				nstc.loadStarlarkFile(id, strings.TrimSuffix(nstpath, ".st")+".fc")
+				return err
 			}
 		}
 	}
@@ -52,13 +56,16 @@ func (nstc *NstCompiler) LoadFile(nstpath string) error {
 	return err
 }
 
-// LoadString loads a nanostate from a text YAML source)
-func (nstc *NstCompiler) LoadString(src string) error {
-	return nstc.LoadBytes([]byte(src))
+// Load starlark file. This is optional step, since the file is also optional.
+func (nstc *NstCompiler) loadStarlarkFile(id string, srcpath string) {
+	nfo, err := os.Stat(srcpath)
+	if err == nil && nfo.Mode().IsRegular() {
+		nstc._functions.ImportSource(id, srcpath)
+	}
 }
 
-// LoadString loads a nanostate from an array of bytes of a YAML source
-func (nstc *NstCompiler) LoadBytes(src []byte) error {
+// Load bytes of the state
+func (nstc *NstCompiler) loadBytes(src []byte) (string, error) {
 	var data yaml.MapSlice
 	var err error
 	if err := yaml.Unmarshal(src, &data); err != nil {
@@ -67,8 +74,8 @@ func (nstc *NstCompiler) LoadBytes(src []byte) error {
 	state := NewOTree().LoadMapSlice(data)
 
 	if state.Exists("id") {
-		if nstc.rootId == "" {
-			nstc.rootId = state.GetString("id")
+		if nstc.rootStateId == "" {
+			nstc.rootStateId = state.GetString("id")
 		}
 		nstc._states[state.GetString("id")] = state
 	} else {
@@ -76,8 +83,9 @@ func (nstc *NstCompiler) LoadBytes(src []byte) error {
 	}
 
 	nstc._unresolved.FindRefs(state)
+	nstc._unresolved.MarkStateResolved(state.GetString("id"))
 
-	return err
+	return state.GetString("id"), err
 }
 
 // Cycle compiles current state and returns a next state Id to be found and loaded, if any.
@@ -85,7 +93,7 @@ func (nstc *NstCompiler) LoadBytes(src []byte) error {
 func (nstc *NstCompiler) Cycle() string {
 	// Resolve includes
 	for _, id := range nstc._unresolved.GetIncluded() {
-		return nstc._unresolved.MarkVisited(id)
+		return nstc._unresolved.MarkStateRequested(id)
 	}
 
 	// Everything seems resolved, compile now
@@ -97,7 +105,7 @@ func (nstc *NstCompiler) Cycle() string {
 }
 
 func (nstc *NstCompiler) Dump() {
-	spew.Dump(nstc.tree)
+	spew.Dump(nstc.Tree())
 }
 
 // Tree returns completed tree
@@ -105,8 +113,6 @@ func (nstc *NstCompiler) Tree() *OTree {
 	if len(nstc._unresolved.GetIncluded()) > 0 {
 		panic("Calling for compiled tree when unresolved sources are still pending")
 	}
-
-	spew.Dump(nstc._unresolved)
 
 	return nstc.tree
 }
@@ -126,5 +132,24 @@ func (nstc *NstCompiler) compileStateJobs(intree map[interface{}]interface{}) ma
 
 // Compiile the tree.
 func (nstc *NstCompiler) compile() error {
+	rootstate, found := nstc._states[nstc.rootStateId]
+	if !found {
+		panic(fmt.Errorf("Root state as '%s' was not found", nstc.rootStateId))
+	}
+	nstc.tree = NewOTree()
+
+	// Header
+	for _, id := range []string{"id", "description"} {
+		nstc.tree.Set(id, rootstate.GetString(id))
+	}
+
+	// Process root state: include what is needed, remove that is not needed.
+	//state := NewOTree()
+	for _, blockdef := range rootstate.GetBranch("state").Keys() {
+		if nstc._functions.Condition(rootstate.GetString("id"), blockdef.(string)) {
+			fmt.Println("...", blockdef)
+		}
+	}
+
 	return nil
 }
