@@ -1,6 +1,7 @@
 package nanocms_compiler
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -8,6 +9,7 @@ type RefList struct {
 	included        map[string]bool
 	referenced_jobs map[string]bool
 	required_jobs   map[string]bool // Their content
+	visited         []string
 }
 
 func NewRefList() *RefList {
@@ -44,6 +46,19 @@ func (rl *RefList) GetIncluded() []string {
 		refs = append(refs, k)
 	}
 	return refs
+}
+
+// MarkVisited marks a reference as "seen" and "requested".
+// If it gets marked again, it means the request wasn't completed,
+// so we hit a infinite cycle, which needs to be broken out.
+func (rl *RefList) MarkVisited(id string) string {
+	for _, mark := range rl.visited {
+		if mark == id {
+			panic(fmt.Errorf("State with ID '%s' still wasn't resolved", id))
+		}
+	}
+	rl.visited = append(rl.visited, id)
+	return id
 }
 
 func (rl *RefList) findRefs(state *OTree) {
