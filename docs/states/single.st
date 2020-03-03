@@ -23,7 +23,7 @@ state:                                    # State tree
       - name: postgresql
       - state: stopped
 
-  ~pgsql-id/install-pgsql:
+  ~pgsql-id/update-pgsql ?pgsql_present:
 
   install-emacs-apt ?is_debian_family:
     - packaging.os.apt:
