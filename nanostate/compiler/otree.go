@@ -1,6 +1,7 @@
 package nanocms_compiler
 
 import (
+	"fmt"
 	"github.com/go-yaml/yaml"
 	"reflect"
 )
@@ -91,7 +92,7 @@ func (tree *OTree) Get(key interface{}, bydefault interface{}) interface{} {
 // GetBranch of the current tree. If branch is not an OTree object or not found, nil is returned.
 func (tree *OTree) GetBranch(key interface{}) *OTree {
 	obj := tree.Get(key, nil)
-	if reflect.TypeOf(obj).Elem().Kind() == reflect.Struct {
+	if obj != nil && reflect.TypeOf(obj).Elem().Kind() == reflect.Struct {
 		return obj.(*OTree)
 	}
 
@@ -140,4 +141,54 @@ func (tree *OTree) Keys() []interface{} {
 
 func (tree *OTree) Items() [][]interface{} {
 	return nil
+}
+
+func (tree *OTree) _to_map(cnt map[string]interface{}, obj interface{}) interface{} {
+	if cnt == nil {
+		cnt = make(map[string]interface{})
+	}
+
+	if reflect.TypeOf(obj).Kind() == reflect.Ptr {
+		for _, k := range obj.(*OTree).Keys() {
+			v := obj.(*OTree).Get(k, nil)
+			if v == nil {
+				cnt[k.(string)] = nil
+			} else {
+				if reflect.TypeOf(v).Kind() == reflect.String {
+					cnt[k.(string)] = v
+				} else {
+					cnt[k.(string)] = tree._to_map(nil, v)
+				}
+			}
+		}
+	} else if reflect.TypeOf(obj).Kind() == reflect.Map {
+		for k, v := range obj.(map[interface{}]interface{}) {
+			if reflect.TypeOf(v).Kind() == reflect.String {
+				cnt[k.(string)] = v
+			} else {
+				cnt[k.(string)] = tree._to_map(nil, v)
+			}
+		}
+	} else if reflect.TypeOf(obj).Kind() == reflect.Slice {
+		ret := make([]interface{}, 0)
+		for _, k := range obj.([]interface{}) {
+			if reflect.TypeOf(k).Kind() == reflect.Ptr {
+				ret = append(ret, tree._to_map(nil, k))
+			} else {
+				fmt.Println("unsupported DSL structure at:", reflect.TypeOf(k).Kind(), k)
+			}
+		}
+		return ret
+	} else {
+		fmt.Println("unsupported DSL type:", reflect.TypeOf(obj).Kind())
+	}
+	return cnt
+}
+
+// ToYAML exports ordered tree to an unordered YAML (!)
+func (tree *OTree) ToYAML() string {
+	obj := tree._to_map(nil, tree._data)
+	data, _ := yaml.Marshal(&obj)
+
+	return string(data)
 }
