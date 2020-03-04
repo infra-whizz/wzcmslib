@@ -147,8 +147,8 @@ func (tree *OTree) _to_map(cnt map[string]interface{}, obj interface{}) interfac
 	if cnt == nil {
 		cnt = make(map[string]interface{})
 	}
-
-	if reflect.TypeOf(obj).Kind() == reflect.Ptr {
+	objType := reflect.TypeOf(obj).Kind()
+	if objType == reflect.Ptr {
 		for _, k := range obj.(*OTree).Keys() {
 			v := obj.(*OTree).Get(k, nil)
 			if v == nil {
@@ -161,7 +161,7 @@ func (tree *OTree) _to_map(cnt map[string]interface{}, obj interface{}) interfac
 				}
 			}
 		}
-	} else if reflect.TypeOf(obj).Kind() == reflect.Map {
+	} else if objType == reflect.Map {
 		for k, v := range obj.(map[interface{}]interface{}) {
 			if reflect.TypeOf(v).Kind() == reflect.String {
 				cnt[k.(string)] = v
@@ -169,7 +169,7 @@ func (tree *OTree) _to_map(cnt map[string]interface{}, obj interface{}) interfac
 				cnt[k.(string)] = tree._to_map(nil, v)
 			}
 		}
-	} else if reflect.TypeOf(obj).Kind() == reflect.Slice {
+	} else if objType == reflect.Slice {
 		ret := make([]interface{}, 0)
 		for _, k := range obj.([]interface{}) {
 			if reflect.TypeOf(k).Kind() == reflect.Ptr {
@@ -180,7 +180,7 @@ func (tree *OTree) _to_map(cnt map[string]interface{}, obj interface{}) interfac
 		}
 		return ret
 	} else {
-		fmt.Println("unsupported DSL type:", reflect.TypeOf(obj).Kind())
+		fmt.Println("unsupported DSL type:", objType)
 	}
 	return cnt
 }
