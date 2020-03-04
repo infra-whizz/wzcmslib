@@ -10,6 +10,12 @@ def is_debian_family():
 def pgsql_present():
     return True
 
+def no():
+    return False
+
+def yes():
+    return True
+
 def my_users():
     users = [
         {"name": "john", "state": "present"},
