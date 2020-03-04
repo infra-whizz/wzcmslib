@@ -130,7 +130,39 @@ func (nstc *NstCompiler) compileStateJobs(intree map[interface{}]interface{}) ma
 	return nil
 }
 
-// Compiile the tree.
+// Compile branch of the state
+func (nstc *NstCompiler) compileState(state *OTree) *OTree {
+	tree := NewOTree()
+
+	branch := state.GetBranch("state")
+	for _, _blockdef := range branch.Keys() {
+		blockdef := _blockdef.(string)
+		if !nstc._functions.Condition(state.GetString("id"), blockdef) {
+			// The whole thing should not be included
+			continue
+		}
+
+		blocktype, err := nstc._functions.BlockType(state.GetString("id"), blockdef)
+		if err != nil {
+			panic(err.Error())
+		}
+
+		switch blocktype {
+		case CDL_T_INCLUSION:
+			//
+			// Fetch that inclusion, compile it here
+			tree.Set(blockdef+"__INCLUSION", branch.Get(_blockdef, nil))
+		case CDL_T_REFERENCE:
+			// Reference, compile it here
+			tree.Set(blockdef+"__REFERENCE", branch.Get(_blockdef, nil))
+		default:
+			tree.Set(_blockdef, branch.Get(_blockdef, nil))
+		}
+	}
+	return tree
+}
+
+// Compile the tree.
 func (nstc *NstCompiler) compile() error {
 	rootstate, found := nstc._states[nstc.rootStateId]
 	if !found {
@@ -143,13 +175,7 @@ func (nstc *NstCompiler) compile() error {
 		nstc.tree.Set(id, rootstate.GetString(id))
 	}
 
-	// Process root state: include what is needed, remove that is not needed.
-	//state := NewOTree()
-	for _, blockdef := range rootstate.GetBranch("state").Keys() {
-		if nstc._functions.Condition(rootstate.GetString("id"), blockdef.(string)) {
-			fmt.Println("...", blockdef)
-		}
-	}
+	nstc.tree.Set("state", nstc.compileState(rootstate))
 
 	return nil
 }
