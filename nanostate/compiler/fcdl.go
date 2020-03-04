@@ -5,6 +5,11 @@ import (
 	"strings"
 )
 
+const (
+	CDL_T_INCLUSION = iota
+	CDL_T_REFERENCE
+)
+
 type CDLFunc struct {
 	threads map[string]*StarlarkProcess
 }
@@ -58,7 +63,8 @@ func (cdl *CDLFunc) getConditionsFromLine(line string) []string {
 //     return one() and two()
 //
 func (cdl *CDLFunc) Condition(stateid string, line string) bool {
-	for _, fn := range cdl.getConditionsFromLine(line) {
+	conditions := cdl.getConditionsFromLine(line)
+	for _, fn := range conditions {
 		res, err := cdl.threads[stateid].Call(fn, nil, nil)
 		if err != nil {
 			panic(fmt.Errorf("Error calling state '%s': %s", stateid, err.Error()))
@@ -67,5 +73,20 @@ func (cdl *CDLFunc) Condition(stateid string, line string) bool {
 			return true
 		}
 	}
-	return false
+	return len(conditions) == 0
+}
+
+// BlockType returns a type of a block: reference or inclusion
+func (cdl *CDLFunc) BlockType(stateid string, line string) (int, error) {
+	var err error
+	if strings.Contains(line, "~") && strings.Contains(line, "&") {
+		return -1, fmt.Errorf("Line '%s' in '%s' cannot be both inclusion and reference", stateid, line)
+	}
+	if strings.Contains(line, "~") {
+		return CDL_T_INCLUSION, err
+	} else if strings.Contains(line, "&") {
+		return CDL_T_REFERENCE, err
+	}
+
+	return -1, err
 }
