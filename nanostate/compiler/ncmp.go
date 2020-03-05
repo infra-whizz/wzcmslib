@@ -152,7 +152,7 @@ func (nstc *NstCompiler) compileState(state *OTree) *OTree {
 					if rb != nil {
 						tree.Set(refBlock, rb)
 					} else {
-						fmt.Printf("ERROR: could not find reference by '%s' called by '%s' in the source:\n", refBlock, blockdef)
+						fmt.Printf("ERROR: could not find reference '%s' called by '%s' in the source:\n", refBlock, blockdef)
 						fmt.Println(includedState.ToYAML())
 						fmt.Println("--------------")
 					}
@@ -164,7 +164,7 @@ func (nstc *NstCompiler) compileState(state *OTree) *OTree {
 					if rb != nil {
 						tree.Set(refBlock, rb)
 					} else {
-						fmt.Printf("ERROR: could not find reference by '%s' called by '%s' in the source:\n", refBlock, blockdef)
+						fmt.Printf("ERROR: could not find reference '%s' called by '%s' in the source:\n", refBlock, blockdef)
 						fmt.Println(includedState.ToYAML())
 						fmt.Println("--------------")
 					}
