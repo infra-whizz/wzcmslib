@@ -137,7 +137,7 @@ func (nstc *NstCompiler) compileState(state *OTree) *OTree {
 		switch blocktype {
 		case CDL_T_INCLUSION:
 			// Fetch that inclusion, compile it here
-			inclusion := nstc._functions.GetInclusion(state.GetString("id"), blockdef)
+			inclusion, _ := nstc._functions.GetInclusion(state.GetString("id"), blockdef)
 			if _, ex := nstc._states[inclusion.Stateid]; !ex {
 				panic(fmt.Errorf("Cannot include state '%s': not found", inclusion.Stateid))
 			}
