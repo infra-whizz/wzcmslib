@@ -14,7 +14,8 @@ const (
 
 type CDLLoop struct {
 	StateId string
-	Params  []map[string]interface{}
+	Module  string
+	Params  []map[interface{}]interface{}
 }
 
 type CDLInclusion struct {
@@ -92,6 +93,67 @@ func (cdl *CDLFunc) Condition(stateid string, line string) bool {
 		}
 	}
 	return len(conditions) == 0
+}
+
+/*
+	Loop returns an array of key/value maps as keyword arguments and applies
+	given function or module on each.
+
+	Example:
+
+		my-job:
+			- my_module []my_function
+
+	The "my_function" is expected to return an array with keywords map inside, e.g.:
+
+		def my_function():
+			return [
+				{
+					"name": "value",
+					"other": "value",
+				},
+				{
+					"name": "something",
+					"other": "something-else".
+				}
+			]
+
+	In this case the example above will be compiled to the following:
+
+		my-job:
+			- my_module:
+				name: value
+				other: value
+			- my_module:
+				name: something
+				other: something-else
+*/
+func (cdl *CDLFunc) Loop(stateid string, line string) (*CDLLoop, error) {
+	line = regexp.MustCompile(`\s+`).ReplaceAllString(line, " ")
+	tokens := strings.Split(line, " ")
+	if len(tokens) != 2 {
+		return nil, fmt.Errorf("Loop directive '%s' has invalid syntax at '%s'", line, stateid)
+	}
+
+	// Skylark function: tokens[1]
+
+	// This shoul be eval'ed from Starlark's function
+	BOGUS_PARAMETERS := []map[interface{}]interface{}{
+		map[interface{}]interface{}{
+			"name":  "john",
+			"state": "present",
+		},
+		map[interface{}]interface{}{
+			"name":  "fred",
+			"state": "absent",
+		},
+	}
+	loop := &CDLLoop{
+		StateId: stateid,
+		Params:  BOGUS_PARAMETERS,
+		Module:  tokens[0],
+	}
+	return loop, nil
 }
 
 /*
