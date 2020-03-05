@@ -9,7 +9,13 @@ import (
 const (
 	CDL_T_INCLUSION = iota
 	CDL_T_DEPENDENCY
+	CDL_T_LOOP
 )
+
+type CDLLoop struct {
+	StateId string
+	Params  []map[string]interface{}
+}
 
 type CDLInclusion struct {
 	Stateid string
@@ -174,6 +180,7 @@ func (cdl *CDLFunc) GetDependency(stateid, line string) (*CDLDependency, error) 
 
 // BlockType returns a type of a block: reference or inclusion
 func (cdl *CDLFunc) BlockType(stateid string, line string) (int, error) {
+	// XXX: The implementation is very basic and dirty. This needs to be a better updated.
 	var err error
 	if strings.Contains(line, "~") && strings.Contains(line, "&") {
 		return -1, fmt.Errorf("Line '%s' in '%s' cannot be both inclusion and reference", stateid, line)
@@ -182,6 +189,11 @@ func (cdl *CDLFunc) BlockType(stateid string, line string) (int, error) {
 		return CDL_T_INCLUSION, err
 	} else if strings.Contains(line, "&") {
 		return CDL_T_DEPENDENCY, err
+	} else if strings.Contains(line, "[]") {
+		if strings.Contains(line, "~") || strings.Contains(line, "&") {
+			return -1, fmt.Errorf("Loop at '%s' in '%s' cannot be inclusion or a reference", stateid, line)
+		}
+		return CDL_T_LOOP, err
 	}
 
 	return -1, err
