@@ -138,7 +138,7 @@ func (nstc *NstCompiler) compileState(state *OTree) *OTree {
 	for _, _blockdef := range branch.Keys() {
 		blockdef := _blockdef.(string)
 		if !nstc._functions.Condition(state.GetString("id"), blockdef) {
-			// The whole thing should not be included
+			// The block definition did not pass the function condition
 			continue
 		}
 
@@ -149,14 +149,46 @@ func (nstc *NstCompiler) compileState(state *OTree) *OTree {
 
 		switch blocktype {
 		case CDL_T_INCLUSION:
-			//
 			// Fetch that inclusion, compile it here
-			tree.Set(blockdef+"__INCLUSION", branch.Get(_blockdef, nil))
-		case CDL_T_REFERENCE:
+			inclusion := nstc._functions.GetInclusion(state.GetString("id"), blockdef)
+			if _, ex := nstc._states[inclusion.Stateid]; !ex {
+				panic(fmt.Errorf("Cannot include state '%s': not found", inclusion.Stateid))
+			}
+
+			// Pre-compile branch
+			includedState := nstc.compileState(nstc._states[inclusion.Stateid])
+
+			// Include specific blocks
+			if len(inclusion.Blocks) > 0 {
+				for _, refBlock := range inclusion.Blocks {
+					rb := includedState.Get(refBlock, nil)
+					if rb != nil {
+						tree.Set(refBlock, rb)
+					} else {
+						fmt.Printf("ERROR: could not find reference by '%s' called by '%s' in the source:\n", refBlock, blockdef)
+						fmt.Println(includedState.ToYAML())
+						fmt.Println("--------------")
+					}
+				}
+			} else {
+				// Include the entire state content
+				for _, refBlock := range includedState.Keys() {
+					rb := includedState.Get(refBlock, nil)
+					if rb != nil {
+						tree.Set(refBlock, rb)
+					} else {
+						fmt.Printf("ERROR: could not find reference by '%s' called by '%s' in the source:\n", refBlock, blockdef)
+						fmt.Println(includedState.ToYAML())
+						fmt.Println("--------------")
+					}
+				}
+			}
+		case CDL_T_DEPENDENCY:
 			// Reference, compile it here
-			tree.Set(blockdef+"__REFERENCE", branch.Get(_blockdef, nil))
+			tree.Set(blockdef+"__DEPENDENCY", branch.Get(_blockdef, nil))
 		default:
-			tree.Set(_blockdef, branch.Get(_blockdef, nil))
+			// XXX: Details rendering here
+			tree.Set(nstc._functions.ToCDLKey(state.GetString("id"), blockdef), branch.Get(_blockdef, nil))
 		}
 	}
 	return tree

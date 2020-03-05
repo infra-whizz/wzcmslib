@@ -104,15 +104,26 @@ func (cdl *CDLFunc) Condition(stateid string, line string) bool {
 */
 func (cdl *CDLFunc) GetInclusion(stateid string, line string) *CDLInclusion {
 	// XXX: Should check if there is only one inclusion
-	incl := &CDLInclusion{}
+	incl := &CDLInclusion{
+		Blocks: make([]string, 0),
+	}
 	if strings.Contains(line, "~") {
 		for _, token := range strings.Split(line, " ") {
+			if token == "" {
+				continue
+			}
+			token = strings.TrimSpace(strings.TrimSuffix(token, "/"))
+
 			if strings.HasPrefix(token, "~") {
-				inclPath := append(strings.Split(token, "/"), "")[:2]
-				incl.Stateid, incl.Blocks = inclPath[0][1:], strings.Split(inclPath[1], ":")
+				inclPath := append(strings.Split(strings.ReplaceAll(token, "~", ""), "/"), "")[:2]
+				incl.Stateid = inclPath[0]
+				if inclPath[1] != "" {
+					incl.Blocks = strings.Split(inclPath[1], ":")
+				}
 			}
 		}
 	}
+
 	return incl
 }
 
