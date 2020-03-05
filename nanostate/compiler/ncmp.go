@@ -117,19 +117,6 @@ func (nstc *NstCompiler) Tree() *OTree {
 	return nstc.tree
 }
 
-// Resolve includes
-func (nstc *NstCompiler) resolveIncludes() {
-
-}
-
-func (nstc *NstCompiler) compileJob(intree []interface{}) []interface{} {
-	return nil
-}
-
-func (nstc *NstCompiler) compileStateJobs(intree map[interface{}]interface{}) map[string]interface{} {
-	return nil
-}
-
 // Compile branch of the state
 func (nstc *NstCompiler) compileState(state *OTree) *OTree {
 	tree := NewOTree()
