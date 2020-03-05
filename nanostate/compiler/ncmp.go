@@ -117,6 +117,13 @@ func (nstc *NstCompiler) Tree() *OTree {
 	return nstc.tree
 }
 
+// Print problematic source part
+func (nstc *NstCompiler) traceSource(state *OTree, msg string, args ...interface{}) {
+	fmt.Printf("ERROR: %s\n", fmt.Sprintf(msg, args...))
+	fmt.Println(state.ToYAML())
+	fmt.Println("---")
+}
+
 // Compile branch of the state
 func (nstc *NstCompiler) compileState(state *OTree) *OTree {
 	tree := NewOTree()
@@ -152,9 +159,7 @@ func (nstc *NstCompiler) compileState(state *OTree) *OTree {
 					if rb != nil {
 						tree.Set(refBlock, rb)
 					} else {
-						fmt.Printf("ERROR: could not find reference '%s' called by '%s' in the source:\n", refBlock, blockdef)
-						fmt.Println(includedState.ToYAML())
-						fmt.Println("--------------")
+						nstc.traceSource(includedState, "Could not find reference '%s' called by '%s' in the source", refBlock, blockdef)
 					}
 				}
 			} else {
@@ -164,9 +169,7 @@ func (nstc *NstCompiler) compileState(state *OTree) *OTree {
 					if rb != nil {
 						tree.Set(refBlock, rb)
 					} else {
-						fmt.Printf("ERROR: could not find reference '%s' called by '%s' in the source:\n", refBlock, blockdef)
-						fmt.Println(includedState.ToYAML())
-						fmt.Println("--------------")
+						nstc.traceSource(includedState, "Could not find reference '%s' called by '%s' in the source", refBlock, blockdef)
 					}
 				}
 			}
@@ -182,9 +185,7 @@ func (nstc *NstCompiler) compileState(state *OTree) *OTree {
 			currBlock := branch.Get(_blockdef, nil)
 			depsBlock := make([]interface{}, 0)
 			if currBlock == nil {
-				fmt.Printf("ERROR: could not find reference '%s' called by '%s' in the source:\n", blockdef, state.GetString("id"))
-				fmt.Println(branch.ToYAML())
-				fmt.Println("--------------")
+				nstc.traceSource(branch, "Could not find reference '%s' called by '%s' in the source", blockdef, state.GetString("id"))
 			}
 
 			dependedOnState := nstc.compileState(nstc._states[dependency.Stateid])
@@ -193,9 +194,7 @@ func (nstc *NstCompiler) compileState(state *OTree) *OTree {
 				if rb != nil {
 					depsBlock = append(append(depsBlock, rb.([]interface{})...), currBlock.([]interface{})...)
 				} else {
-					fmt.Printf("ERROR: could not find dependency state '%s' called by '%s' in the source:\n", refBlock, blockdef)
-					fmt.Println(dependedOnState.ToYAML())
-					fmt.Println("--------------")
+					nstc.traceSource(dependedOnState, "Could not find dependency state '%s' called by '%s' in the source", refBlock, blockdef)
 				}
 			}
 			// Reference, compile it here
