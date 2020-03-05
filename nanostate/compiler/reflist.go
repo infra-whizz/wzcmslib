@@ -89,6 +89,9 @@ func (rl *RefList) findRefs(state *OTree) {
 		if strings.Contains(expr, "~") || strings.Contains(expr, "&") {
 			for _, expr_t := range strings.Split(expr, " ") {
 				if strings.HasPrefix(expr_t, "~") {
+					if !strings.Contains(expr_t, "/") { // Include the entire state
+						expr_t += "/"
+					}
 					rl.included[strings.Split(expr_t, "/")[0][1:]] = true
 					rl.required_jobs[strings.Split(expr_t, "/")[1]] = true
 				} else if strings.HasPrefix(expr_t, "&") {
