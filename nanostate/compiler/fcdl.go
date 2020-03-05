@@ -2,6 +2,7 @@ package nanocms_compiler
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -13,6 +14,12 @@ const (
 type CDLInclusion struct {
 	Stateid string
 	Blocks  []string
+}
+
+type CDLDependency struct {
+	Stateid     string
+	AnchorBlock string
+	Blocks      []string
 }
 
 type CDLFunc struct {
@@ -85,7 +92,7 @@ func (cdl *CDLFunc) Condition(stateid string, line string) bool {
 	Inclusion can have the entire state included or only specific blocks from it.
 	The format is the following:
 
-		~<STATE-ID>/[BLOCK-A:BLOCK-B:...]
+		~<STATE-ID>/[BLOCK-A]:[BLOCK-B]:...
 
 	Blocks are delimited with colon ":" symbol. For example, to add the entire
 	state:
@@ -102,7 +109,7 @@ func (cdl *CDLFunc) Condition(stateid string, line string) bool {
 
 	All jobs from that block will be included.
 */
-func (cdl *CDLFunc) GetInclusion(stateid string, line string) *CDLInclusion {
+func (cdl *CDLFunc) GetInclusion(stateid string, line string) (*CDLInclusion, error) {
 	// XXX: Should check if there is only one inclusion
 	incl := &CDLInclusion{
 		Blocks: make([]string, 0),
@@ -124,7 +131,45 @@ func (cdl *CDLFunc) GetInclusion(stateid string, line string) *CDLInclusion {
 		}
 	}
 
-	return incl
+	return incl, nil
+}
+
+/*
+	Dependency can include specific list of blocks from a state in the order they are defined.
+	It does not allow to include the entire state with all the blocks:
+
+		<BLOCK-ID> &<STATE-ID>/<BLOCK-ID>:[BLOCK-ID]:...
+
+	Blocks are delimited with colon ":" symbol. For example, to add only one block from some state:
+
+		do-something &my-state/my-block
+
+	To add few blocks from that state:
+
+		do-something &my-state/my-block:my-other-block
+*/
+func (cdl *CDLFunc) GetDependency(stateid, line string) (*CDLDependency, error) {
+	var err error
+	expr := strings.Split(strings.ReplaceAll(regexp.MustCompile(`\s+`).ReplaceAllString(line, " "), "&", ""), " ")
+	if len(expr) != 2 {
+		return nil, fmt.Errorf("Dependency directive '%s' has invalid syntax at '%s'", line, stateid)
+	}
+	refJobs := strings.Split(expr[1], "/")
+	if len(refJobs) < 2 {
+		return nil, fmt.Errorf("Dependency directive '%s' has invalid syntax at '%s'", line, stateid)
+	}
+
+	dep := &CDLDependency{
+		Stateid:     refJobs[0],
+		AnchorBlock: expr[0],
+		Blocks:      strings.Split(strings.Trim(refJobs[1], ":"), ":"),
+	}
+
+	if len(dep.Blocks) == 0 {
+		return nil, fmt.Errorf("Dependency directive '%s' should not include the entire state at '%s'.", line, stateid)
+	}
+
+	return dep, err
 }
 
 // BlockType returns a type of a block: reference or inclusion

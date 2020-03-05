@@ -171,8 +171,35 @@ func (nstc *NstCompiler) compileState(state *OTree) *OTree {
 				}
 			}
 		case CDL_T_DEPENDENCY:
+			dependency, err := nstc._functions.GetDependency(state.GetString("id"), blockdef)
+			if err != nil {
+				panic(err.Error())
+			}
+			if _, ex := nstc._states[dependency.Stateid]; !ex {
+				panic(fmt.Errorf("Cannot depend on a state '%s': not found", dependency.Stateid))
+			}
+
+			currBlock := branch.Get(_blockdef, nil)
+			depsBlock := make([]interface{}, 0)
+			if currBlock == nil {
+				fmt.Printf("ERROR: could not find reference '%s' called by '%s' in the source:\n", blockdef, state.GetString("id"))
+				fmt.Println(branch.ToYAML())
+				fmt.Println("--------------")
+			}
+
+			dependedOnState := nstc.compileState(nstc._states[dependency.Stateid])
+			for _, refBlock := range dependency.Blocks {
+				rb := dependedOnState.Get(refBlock, nil)
+				if rb != nil {
+					depsBlock = append(append(depsBlock, rb.([]interface{})...), currBlock.([]interface{})...)
+				} else {
+					fmt.Printf("ERROR: could not find dependency state '%s' called by '%s' in the source:\n", refBlock, blockdef)
+					fmt.Println(dependedOnState.ToYAML())
+					fmt.Println("--------------")
+				}
+			}
 			// Reference, compile it here
-			tree.Set(blockdef+"__DEPENDENCY", branch.Get(_blockdef, nil))
+			tree.Set(dependency.AnchorBlock, depsBlock)
 		default:
 			// XXX: Details rendering here
 			tree.Set(nstc._functions.ToCDLKey(state.GetString("id"), blockdef), branch.Get(_blockdef, nil))
