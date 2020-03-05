@@ -7,8 +7,13 @@ import (
 
 const (
 	CDL_T_INCLUSION = iota
-	CDL_T_REFERENCE
+	CDL_T_DEPENDENCY
 )
+
+type CDLInclusion struct {
+	Stateid string
+	Blocks  []string
+}
 
 type CDLFunc struct {
 	threads map[string]*StarlarkProcess
@@ -76,6 +81,41 @@ func (cdl *CDLFunc) Condition(stateid string, line string) bool {
 	return len(conditions) == 0
 }
 
+/*
+	Inclusion can have the entire state included or only specific blocks from it.
+	The format is the following:
+
+		~<STATE-ID>/[BLOCK-A:BLOCK-B:...]
+
+	Blocks are delimited with colon ":" symbol. For example, to add the entire
+	state:
+
+		~my-state
+
+	To add only one block from that state:
+
+		~my-state/my-block
+
+	To add few blocks from that state:
+
+		~my-state/my-block:my-other-block
+
+	All jobs from that block will be included.
+*/
+func (cdl *CDLFunc) GetInclusion(stateid string, line string) *CDLInclusion {
+	// XXX: Should check if there is only one inclusion
+	incl := &CDLInclusion{}
+	if strings.Contains(line, "~") {
+		for _, token := range strings.Split(line, " ") {
+			if strings.HasPrefix(token, "~") {
+				inclPath := append(strings.Split(token, "/"), "")[:2]
+				incl.Stateid, incl.Blocks = inclPath[0][1:], strings.Split(inclPath[1], ":")
+			}
+		}
+	}
+	return incl
+}
+
 // BlockType returns a type of a block: reference or inclusion
 func (cdl *CDLFunc) BlockType(stateid string, line string) (int, error) {
 	var err error
@@ -85,8 +125,18 @@ func (cdl *CDLFunc) BlockType(stateid string, line string) (int, error) {
 	if strings.Contains(line, "~") {
 		return CDL_T_INCLUSION, err
 	} else if strings.Contains(line, "&") {
-		return CDL_T_REFERENCE, err
+		return CDL_T_DEPENDENCY, err
 	}
 
 	return -1, err
+}
+
+// ToCDLKey removes all controlling macros, leaving only ready to final use key.
+func (cdl *CDLFunc) ToCDLKey(stateid string, line string) string {
+	for _, token := range strings.Split(line, " ") {
+		if len(token) > 0 && !strings.HasPrefix(token, "~") && !strings.HasPrefix(token, "&") {
+			return token
+		}
+	}
+	return ""
 }
