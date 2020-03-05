@@ -124,6 +124,69 @@ func (nstc *NstCompiler) traceSource(state *OTree, msg string, args ...interface
 	fmt.Println("---")
 }
 
+// Compile inclusion
+func (nstc *NstCompiler) compileInclusion(stateid string, target *OTree, block string) {
+	// Fetch that inclusion, compile it here
+	inclusion, _ := nstc._functions.GetInclusion(stateid, block)
+	if _, ex := nstc._states[inclusion.Stateid]; !ex {
+		panic(fmt.Errorf("Cannot include state '%s': not found", inclusion.Stateid))
+	}
+
+	// Pre-compile branch
+	includedState := nstc.compileState(nstc._states[inclusion.Stateid])
+
+	// Include specific blocks
+	if len(inclusion.Blocks) > 0 {
+		for _, refBlock := range inclusion.Blocks {
+			rb := includedState.Get(refBlock, nil)
+			if rb != nil {
+				target.Set(refBlock, rb)
+			} else {
+				nstc.traceSource(includedState, "Could not find reference '%s' called by '%s' in the source", refBlock, block)
+			}
+		}
+	} else {
+		// Include the entire state content
+		for _, refBlock := range includedState.Keys() {
+			rb := includedState.Get(refBlock, nil)
+			if rb != nil {
+				target.Set(refBlock, rb)
+			} else {
+				nstc.traceSource(includedState, "Could not find reference '%s' called by '%s' in the source", refBlock, block)
+			}
+		}
+	}
+}
+
+// Compile dependency
+func (nstc *NstCompiler) compileDependency(stateid string, branch *OTree, target *OTree, block string) {
+	dependency, err := nstc._functions.GetDependency(stateid, block)
+	if err != nil {
+		panic(err.Error())
+	}
+	if _, ex := nstc._states[dependency.Stateid]; !ex {
+		panic(fmt.Errorf("Cannot depend on a state '%s': not found", dependency.Stateid))
+	}
+
+	currBlock := branch.Get(block, nil)
+	depsBlock := make([]interface{}, 0)
+	if currBlock == nil {
+		nstc.traceSource(branch, "Could not find reference '%s' called by '%s' in the source", block, stateid)
+	}
+
+	dependedOnState := nstc.compileState(nstc._states[dependency.Stateid])
+	for _, refBlock := range dependency.Blocks {
+		rb := dependedOnState.Get(refBlock, nil)
+		if rb != nil {
+			depsBlock = append(append(depsBlock, rb.([]interface{})...), currBlock.([]interface{})...)
+		} else {
+			nstc.traceSource(dependedOnState, "Could not find dependency state '%s' called by '%s' in the source", refBlock, block)
+		}
+	}
+	// Reference, compile it here
+	target.Set(dependency.AnchorBlock, depsBlock)
+}
+
 // Compile branch of the state
 func (nstc *NstCompiler) compileState(state *OTree) *OTree {
 	tree := NewOTree()
@@ -143,62 +206,9 @@ func (nstc *NstCompiler) compileState(state *OTree) *OTree {
 
 		switch blocktype {
 		case CDL_T_INCLUSION:
-			// Fetch that inclusion, compile it here
-			inclusion, _ := nstc._functions.GetInclusion(state.GetString("id"), blockdef)
-			if _, ex := nstc._states[inclusion.Stateid]; !ex {
-				panic(fmt.Errorf("Cannot include state '%s': not found", inclusion.Stateid))
-			}
-
-			// Pre-compile branch
-			includedState := nstc.compileState(nstc._states[inclusion.Stateid])
-
-			// Include specific blocks
-			if len(inclusion.Blocks) > 0 {
-				for _, refBlock := range inclusion.Blocks {
-					rb := includedState.Get(refBlock, nil)
-					if rb != nil {
-						tree.Set(refBlock, rb)
-					} else {
-						nstc.traceSource(includedState, "Could not find reference '%s' called by '%s' in the source", refBlock, blockdef)
-					}
-				}
-			} else {
-				// Include the entire state content
-				for _, refBlock := range includedState.Keys() {
-					rb := includedState.Get(refBlock, nil)
-					if rb != nil {
-						tree.Set(refBlock, rb)
-					} else {
-						nstc.traceSource(includedState, "Could not find reference '%s' called by '%s' in the source", refBlock, blockdef)
-					}
-				}
-			}
+			nstc.compileInclusion(state.GetString("id"), tree, blockdef)
 		case CDL_T_DEPENDENCY:
-			dependency, err := nstc._functions.GetDependency(state.GetString("id"), blockdef)
-			if err != nil {
-				panic(err.Error())
-			}
-			if _, ex := nstc._states[dependency.Stateid]; !ex {
-				panic(fmt.Errorf("Cannot depend on a state '%s': not found", dependency.Stateid))
-			}
-
-			currBlock := branch.Get(_blockdef, nil)
-			depsBlock := make([]interface{}, 0)
-			if currBlock == nil {
-				nstc.traceSource(branch, "Could not find reference '%s' called by '%s' in the source", blockdef, state.GetString("id"))
-			}
-
-			dependedOnState := nstc.compileState(nstc._states[dependency.Stateid])
-			for _, refBlock := range dependency.Blocks {
-				rb := dependedOnState.Get(refBlock, nil)
-				if rb != nil {
-					depsBlock = append(append(depsBlock, rb.([]interface{})...), currBlock.([]interface{})...)
-				} else {
-					nstc.traceSource(dependedOnState, "Could not find dependency state '%s' called by '%s' in the source", refBlock, blockdef)
-				}
-			}
-			// Reference, compile it here
-			tree.Set(dependency.AnchorBlock, depsBlock)
+			nstc.compileDependency(state.GetString("id"), branch, tree, blockdef)
 		default:
 			// XXX: Details rendering here
 			tree.Set(nstc._functions.ToCDLKey(state.GetString("id"), blockdef), branch.Get(_blockdef, nil))
