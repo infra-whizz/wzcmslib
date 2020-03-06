@@ -16,12 +16,17 @@ type OTree struct {
 }
 
 func NewOTree() *OTree {
-	otr := new(OTree)
-	otr._data = make(map[interface{}]interface{})
-	otr._kidx = make([]interface{}, 0)
-	return otr
+	return new(OTree).Flush()
 }
 
+// Flush the content of the tree
+func (tree *OTree) Flush() *OTree {
+	tree._data = make(map[interface{}]interface{})
+	tree._kidx = make([]interface{}, 0)
+	return tree
+}
+
+// LoadMapSlice loads a yaml.MapSlice object that keeps the ordering
 func (tree *OTree) LoadMapSlice(data yaml.MapSlice) *OTree {
 	for _, item := range data {
 		switch reflect.TypeOf(item.Value).Kind() {
