@@ -223,11 +223,43 @@ func (nstc *NstCompiler) compileState(state *OTree) *OTree {
 		case CDL_T_DEPENDENCY:
 			nstc.compileDependency(state.GetString("id"), branch, tree, blockdef)
 		default:
-			// XXX: Details rendering here
-			tree.Set(nstc._functions.ToCDLKey(state.GetString("id"), blockdef), branch.Get(_blockdef, nil))
+			tree.Set(nstc._functions.ToCDLKey(state.GetString("id"), blockdef),
+				nstc.compileBlock(state.GetString("id"), branch.Get(_blockdef, nil)))
 		}
 	}
 	return tree
+}
+
+// Block compilation
+func (nstc *NstCompiler) compileBlock(stateid string, block interface{}) []interface{} {
+	section := make([]interface{}, 0)
+	for _, src := range block.([]interface{}) {
+		dst := NewOTree()
+		for _, mod_ref := range src.(*OTree).Keys() {
+			mod_line := mod_ref.(string)
+			mod_type, _ := nstc._functions.BlockType(stateid, mod_line)
+			if mod_type == CDL_T_LOOP {
+				loopDef, err := nstc._functions.Loop(stateid, mod_line)
+				if err != nil {
+					panic(err)
+				}
+
+				mod_block := make([]interface{}, 0)
+				for _, paramset := range loopDef.Params {
+					modpar := NewOTree()
+					for pk := range paramset {
+						modpar.Set(pk, paramset[pk])
+					}
+					mod_block = append(mod_block, NewOTree().Set(loopDef.Module, modpar))
+				}
+				return mod_block
+			} else {
+				dst.Set(mod_line, src.(*OTree).Get(mod_ref, nil))
+			}
+		}
+		section = append(section, dst)
+	}
+	return section
 }
 
 // Compile the tree.
