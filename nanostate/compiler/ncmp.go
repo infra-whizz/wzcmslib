@@ -23,6 +23,7 @@ type NstCompiler struct {
 	_unresolved *RefList
 	tree        *OTree
 	rootStateId string
+	_debug      bool
 }
 
 func NewNstCompiler() *NstCompiler {
@@ -31,6 +32,7 @@ func NewNstCompiler() *NstCompiler {
 	nstc._states = make(map[string]*OTree)
 	nstc._unresolved = NewRefList()
 	nstc._functions = NewCDLFunc()
+	nstc._debug = false
 
 	return nstc
 }
@@ -54,6 +56,12 @@ func (nstc *NstCompiler) LoadFile(nstpath string) error {
 	}
 
 	return err
+}
+
+// SetDebug state
+func (nstc *NstCompiler) SetDebug(state bool) *NstCompiler {
+	nstc._debug = state
+	return nstc
 }
 
 // Load starlark file. This is optional step, since the file is also optional.
@@ -142,7 +150,9 @@ func (nstc *NstCompiler) compileInclusion(stateid string, target *OTree, block s
 			if rb != nil {
 				target.Set(refBlock, rb)
 			} else {
-				nstc.traceSource(includedState, "Could not find reference '%s' called by '%s' in the source", refBlock, block)
+				if nstc._debug {
+					nstc.traceSource(includedState, "Skipped reference '%s' by '%s' in the source", refBlock, block)
+				}
 			}
 		}
 	} else {
@@ -180,7 +190,10 @@ func (nstc *NstCompiler) compileDependency(stateid string, branch *OTree, target
 		if rb != nil {
 			depsBlock = append(append(depsBlock, rb.([]interface{})...), currBlock.([]interface{})...)
 		} else {
-			nstc.traceSource(dependedOnState, "Could not find dependency state '%s' called by '%s' in the source", refBlock, block)
+			depsBlock = append(depsBlock, currBlock.([]interface{})...)
+			if nstc._debug {
+				nstc.traceSource(dependedOnState, "Could not find dependency state '%s' called by '%s' in the source", refBlock, block)
+			}
 		}
 	}
 	// Reference, compile it here
