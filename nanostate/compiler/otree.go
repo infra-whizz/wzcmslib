@@ -29,26 +29,26 @@ func (tree *OTree) Flush() *OTree {
 // LoadMapSlice loads a yaml.MapSlice object that keeps the ordering
 func (tree *OTree) LoadMapSlice(data yaml.MapSlice) *OTree {
 	for _, item := range data {
-		switch reflect.TypeOf(item.Value).Kind() {
+		kind := reflect.TypeOf(item.Value).Kind()
+		switch kind {
 		case reflect.Slice:
 			tree.Set(item.Key, tree.getMapSlice(item.Value.(yaml.MapSlice), nil))
-		default:
+		case reflect.String:
 			tree.Set(item.Key, item.Value)
+		default:
+			panic(fmt.Errorf("Unknown type '%s' while loading state", kind))
 		}
 	}
 	return tree
 }
 
-func (tree *OTree) getArray(data []interface{}) []interface{} {
+func (tree *OTree) getArray(data interface{}) []interface{} {
 	cnt := make([]interface{}, 0)
-	for _, elem := range data {
-		switch reflect.TypeOf(elem).Elem().Kind() {
-		case reflect.Struct:
-			cnt = append(cnt, tree.getMapSlice(elem.(yaml.MapSlice), nil))
-		default:
-			cnt = append(cnt, elem)
-		}
+
+	for _, el := range data.([]interface{}) {
+		cnt = append(cnt, tree.getMapSlice(el.(yaml.MapSlice), nil))
 	}
+
 	return cnt
 }
 
@@ -58,15 +58,19 @@ func (tree *OTree) getMapSlice(data yaml.MapSlice, cnt *OTree) *OTree {
 	}
 	for _, item := range data {
 		if item.Value != nil {
-			switch reflect.TypeOf(item.Value).Kind() {
+			kind := reflect.TypeOf(item.Value).Kind()
+			switch kind {
 			case reflect.Slice:
-				if reflect.TypeOf(item.Value).Elem().Kind() == reflect.Interface {
-					cnt.Set(item.Key, tree.getArray(item.Value.([]interface{})))
+				i_val_t := reflect.TypeOf(item.Value)
+				if i_val_t.Kind() == reflect.Slice && i_val_t.Elem().Kind() == reflect.Interface {
+					cnt.Set(item.Key, tree.getArray(item.Value))
 				} else {
-					cnt.Set(item.Key, tree.getMapSlice(item.Value.(yaml.MapSlice), cnt))
+					cnt.Set(item.Key, tree.getMapSlice(item.Value.(yaml.MapSlice), nil))
 				}
-			default:
+			case reflect.String:
 				cnt.Set(item.Key, item.Value)
+			default:
+				panic(fmt.Errorf("Unknown type '%s' while loading state", kind))
 			}
 		} else {
 			cnt.Set(item.Key, nil)
@@ -148,51 +152,41 @@ func (tree *OTree) Items() [][]interface{} {
 	return nil
 }
 
-func (tree *OTree) _to_map(cnt map[string]interface{}, obj interface{}) interface{} {
+func (tree *OTree) _to_structure(cnt map[string]interface{}, obj interface{}) interface{} {
+	if obj == nil {
+		return nil
+	}
+
 	if cnt == nil {
 		cnt = make(map[string]interface{})
 	}
 	objType := reflect.TypeOf(obj).Kind()
 	if objType == reflect.Ptr {
-		for _, k := range obj.(*OTree).Keys() {
-			v := obj.(*OTree).Get(k, nil)
-			if v == nil {
-				cnt[k.(string)] = nil
-			} else {
-				if reflect.TypeOf(v).Kind() == reflect.String {
-					cnt[k.(string)] = v
-				} else {
-					cnt[k.(string)] = tree._to_map(nil, v)
-				}
-			}
+		for _, obj_k := range obj.(*OTree).Keys() {
+			cnt[obj_k.(string)] = tree._to_structure(nil, obj.(*OTree).Get(obj_k, nil))
 		}
 	} else if objType == reflect.Map {
-		for k, v := range obj.(map[interface{}]interface{}) {
-			if reflect.TypeOf(v).Kind() == reflect.String {
-				cnt[k.(string)] = v
-			} else {
-				cnt[k.(string)] = tree._to_map(nil, v)
-			}
+		for obj_k := range obj.(map[interface{}]interface{}) {
+			cnt[obj_k.(string)] = tree._to_structure(nil, obj.(map[interface{}]interface{})[obj_k])
 		}
 	} else if objType == reflect.Slice {
-		ret := make([]interface{}, 0)
-		for _, k := range obj.([]interface{}) {
-			if reflect.TypeOf(k).Kind() == reflect.Ptr {
-				ret = append(ret, tree._to_map(nil, k))
-			} else {
-				fmt.Println("unsupported DSL structure at:", reflect.TypeOf(k).Kind(), k)
-			}
+		arr := make([]interface{}, 0)
+		for _, element := range obj.([]interface{}) {
+			arr = append(arr, tree._to_structure(nil, element))
 		}
-		return ret
+		return arr
+	} else if objType == reflect.String {
+		return obj.(string)
 	} else {
 		fmt.Println("unsupported DSL type:", objType)
 	}
+
 	return cnt
 }
 
 // ToYAML exports ordered tree to an unordered YAML (!)
 func (tree *OTree) ToYAML() string {
-	obj := tree._to_map(nil, tree._data)
+	obj := tree._to_structure(nil, tree._data)
 	data, _ := yaml.Marshal(&obj)
 
 	return string(data)
