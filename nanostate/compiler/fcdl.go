@@ -2,6 +2,7 @@ package nanocms_compiler
 
 import (
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 )
@@ -134,13 +135,22 @@ func (cdl *CDLFunc) Loop(stateid string, line string) (*CDLLoop, error) {
 	if len(tokens) != 2 || !strings.HasPrefix(tokens[1], "[]") {
 		return nil, fmt.Errorf("Loop directive '%s' has invalid syntax at '%s'", line, stateid)
 	}
-	res, err := cdl.threads[stateid].Call(tokens[1][2:], nil, nil)
+	fn := tokens[1][2:]
+	res, err := cdl.threads[stateid].Call(fn, nil, nil)
 	if err != nil {
 		panic(fmt.Errorf("Error calling state '%s': %s", stateid, err.Error()))
 	}
 
+	res_type := res.Type()
+	if res_type != "list" {
+		panic(fmt.Errorf("Function '%s' returns '%s', but is expected to return a list of dicts.", fn, res_type))
+	}
+
 	params := make([]map[interface{}]interface{}, 0)
 	for _, pset := range NewStarType(res).Interface().([]interface{}) {
+		if reflect.TypeOf(pset).Kind() != reflect.Map {
+			panic(fmt.Errorf("Function '%s' is expected to return a list of dicts.", fn))
+		}
 		params = append(params, pset.(map[interface{}]interface{}))
 	}
 
