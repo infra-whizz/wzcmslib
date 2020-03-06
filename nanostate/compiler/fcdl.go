@@ -131,29 +131,20 @@ func (cdl *CDLFunc) Condition(stateid string, line string) bool {
 func (cdl *CDLFunc) Loop(stateid string, line string) (*CDLLoop, error) {
 	line = regexp.MustCompile(`\s+`).ReplaceAllString(line, " ")
 	tokens := strings.Split(line, " ")
-	if len(tokens) != 2 {
+	if len(tokens) != 2 || !strings.HasPrefix(tokens[1], "[]") {
 		return nil, fmt.Errorf("Loop directive '%s' has invalid syntax at '%s'", line, stateid)
 	}
-
-	// Skylark function: tokens[1]
-
-	// This shoul be eval'ed from Starlark's function
-	BOGUS_PARAMETERS := []map[interface{}]interface{}{
-		map[interface{}]interface{}{
-			"name":  "john",
-			"state": "present",
-		},
-		map[interface{}]interface{}{
-			"name":  "fred",
-			"state": "absent",
-		},
+	res, err := cdl.threads[stateid].Call(tokens[1][2:], nil, nil)
+	if err != nil {
+		panic(fmt.Errorf("Error calling state '%s': %s", stateid, err.Error()))
 	}
-	loop := &CDLLoop{
-		StateId: stateid,
-		Params:  BOGUS_PARAMETERS,
-		Module:  tokens[0],
+
+	params := make([]map[interface{}]interface{}, 0)
+	for _, pset := range NewStarType(res).Interface().([]interface{}) {
+		params = append(params, pset.(map[interface{}]interface{}))
 	}
-	return loop, nil
+
+	return &CDLLoop{StateId: stateid, Params: params, Module: tokens[0]}, nil
 }
 
 /*
