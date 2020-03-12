@@ -1,0 +1,34 @@
+def is_debian():
+    """
+    This function is an example.
+    """
+    return False
+
+def is_ubuntu():
+    """
+    This is just an example.
+    """
+    return True
+
+def is_debian_family():
+    """
+    You can reuse local functions just like so.
+    """
+    return is_debian() or is_ubuntu()
+
+def is_redhat_family():
+    """
+    is_redhat -- presumably would return False on non-RH systems.
+    """
+    return False
+
+def more_users():
+    """
+    Add many users.
+    """
+    users = [
+        {"name": "john", "state": "present"},
+        {"name": "fred", "state": "present"},
+        {"name": "ralf", "state": "absent"},
+    ]
+    return users

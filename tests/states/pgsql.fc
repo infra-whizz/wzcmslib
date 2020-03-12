@@ -1,0 +1,5 @@
+def is_pgsql_needed():
+    """
+    An example if PostgreSQL is installed.
+    """
+    return True
