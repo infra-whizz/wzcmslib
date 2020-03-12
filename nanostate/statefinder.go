@@ -20,11 +20,18 @@ func init() {
 	logger = nanoutils.GetTextLogger(logrus.DebugLevel, os.Stdout)
 }
 
-type NanoStateMeta struct {
-	Id       string
+type NanoStateFunctionsMeta struct {
 	Filename string
 	Path     string
 	Info     *os.FileInfo
+}
+
+type NanoStateMeta struct {
+	Id        string
+	Filename  string
+	Path      string
+	Info      *os.FileInfo
+	Functions *NanoStateFunctionsMeta
 }
 
 type NanoStateIndex struct {
