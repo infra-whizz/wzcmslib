@@ -1,4 +1,4 @@
-module github.com/isbm/nano-cms
+module github.com/infra-whizz/wzcmslib
 
 go 1.13
 
