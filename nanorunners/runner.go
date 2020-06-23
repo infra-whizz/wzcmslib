@@ -1,7 +1,7 @@
 package nanocms_runners
 
 import (
-	"github.com/isbm/nano-cms/nanostate"
+	"github.com/infra-whizz/wzcmslib/nanostate"
 )
 
 const (

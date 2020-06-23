@@ -2,7 +2,7 @@ package nanocms_runners
 
 import (
 	"bytes"
-	"github.com/isbm/nano-cms/nanorunners/callers"
+	"github.com/infra-whizz/wzcmslib/nanorunners/callers"
 	"os/exec"
 	"strings"
 )

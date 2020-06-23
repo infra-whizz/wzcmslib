@@ -1,7 +1,7 @@
 package tests
 
 import (
-	"github.com/isbm/nano-cms/nanostate/compiler"
+	"github.com/infra-whizz/wzcmslib/nanostate/compiler"
 	"gopkg.in/check.v1"
 	"testing"
 )

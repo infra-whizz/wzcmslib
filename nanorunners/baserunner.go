@@ -2,7 +2,7 @@ package nanocms_runners
 
 import (
 	"fmt"
-	"github.com/isbm/nano-cms/nanostate"
+	"github.com/infra-whizz/wzcmslib/nanostate"
 	"strings"
 )
 

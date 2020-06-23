@@ -2,7 +2,7 @@ package nanocms_compiler
 
 import (
 	"fmt"
-	"github.com/isbm/nano-cms/nanostate/builtins"
+	"github.com/infra-whizz/wzcmslib/nanostate/builtins"
 	"go.starlark.net/repl"
 	"go.starlark.net/resolve"
 	"go.starlark.net/starlark"

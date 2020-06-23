@@ -6,7 +6,7 @@ package nanocms_state
 
 import (
 	"github.com/go-yaml/yaml"
-	"github.com/isbm/nano-cms/nanoutils"
+	"github.com/infra-whizz/wzcmslib/nanoutils"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
