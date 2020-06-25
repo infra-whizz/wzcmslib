@@ -67,11 +67,12 @@ func (nsf *NanoStateIndex) AddStateRoots(pth ...string) *NanoStateIndex {
 }
 
 // Index all the files in the all roots
-func (nsf *NanoStateIndex) Index() {
+func (nsf *NanoStateIndex) Index() *NanoStateIndex {
 	nsf._ct = len(nsf._mt_index)
 	for _, root := range nsf.stateRoots {
 		nsf.getPathFiles(root)
 	}
+	return nsf
 }
 
 // This only unmarshalls the state and fetches its ID
