@@ -49,6 +49,8 @@ package nanocms_state
 import (
 	"errors"
 	"reflect"
+
+	nanocms_compiler "github.com/infra-whizz/wzcmslib/nanostate/compiler"
 )
 
 type StateModule struct {
@@ -74,11 +76,12 @@ func NewNanostate() *Nanostate {
 }
 
 // Load Nanostate tree, which is already compiled statically and vaildated.
-func (pb *Nanostate) Load(tree map[string]interface{}) error {
+func (pb *Nanostate) Load(tree *nanocms_compiler.OTree) error {
 	pb.Groups = make([]*StateGroup, 0)
+	sTree := tree.Serialise()
 
 	for _, rootKey := range []string{"id", "description", "state"} {
-		if val, ex := tree[rootKey]; ex {
+		if val, ex := sTree[rootKey]; ex {
 			switch rootKey {
 			case "id":
 				pb.Id = val.(string)
@@ -100,8 +103,8 @@ func (pb *Nanostate) Load(tree map[string]interface{}) error {
 // Load the state, splitting groups and modules
 func (pb *Nanostate) loadState(state interface{}) {
 	// Load groups
-	for gname, gobj := range state.(map[interface{}]interface{}) {
-		pb.Groups = append(pb.Groups, pb.loadGroup(gname.(string), gobj))
+	for gname, gobj := range state.(map[string]interface{}) {
+		pb.Groups = append(pb.Groups, pb.loadGroup(gname, gobj))
 	}
 }
 
@@ -125,18 +128,18 @@ func (pb *Nanostate) loadGroup(name string, gobj interface{}) *StateGroup {
 func (pb *Nanostate) loadModuleInstructions(mobj interface{}) *StateModule {
 	// Note: always length of 1
 	var module *StateModule
-	for mname, minstr := range mobj.(map[interface{}]interface{}) {
+	for mname, minstr := range mobj.(map[string]interface{}) {
 		module = &StateModule{
 			Instructions: make([]interface{}, 0),
 		}
-		module.Module = mname.(string)
+		module.Module = mname
 		tMinstr := reflect.ValueOf(minstr).Kind()
 		if tMinstr == reflect.Slice {
 			module.Instructions = append(module.Instructions, minstr.([]interface{})...)
 		} else if tMinstr == reflect.Map {
 			module.Args = make(map[string]interface{})
-			for argname, argval := range minstr.(map[interface{}]interface{}) {
-				module.Args[argname.(string)] = argval
+			for argname, argval := range minstr.(map[string]interface{}) {
+				module.Args[argname] = argval
 			}
 		}
 	}
