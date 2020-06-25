@@ -2,8 +2,9 @@ package nanocms_compiler
 
 import (
 	"fmt"
-	"github.com/go-yaml/yaml"
 	"reflect"
+
+	"github.com/go-yaml/yaml"
 )
 
 /*
@@ -190,4 +191,13 @@ func (tree *OTree) ToYAML() string {
 	data, _ := yaml.Marshal(&obj)
 
 	return string(data)
+}
+
+func (tree *OTree) Serialise() map[string]interface{} {
+	obj := tree._to_structure(nil, tree._data)
+	shallowObj := make(map[string]interface{})
+	for k, v := range obj.(map[string]interface{}) {
+		shallowObj[k] = v
+	}
+	return shallowObj
 }
