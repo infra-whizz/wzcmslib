@@ -5,13 +5,15 @@ Nanostate is loaded by Id or filename.
 package nanocms_state
 
 import (
-	"github.com/go-yaml/yaml"
-	"github.com/infra-whizz/wzcmslib/nanoutils"
-	"github.com/sirupsen/logrus"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
+
+	"github.com/go-yaml/yaml"
+	"github.com/infra-whizz/wzcmslib/nanoutils"
+	"github.com/sirupsen/logrus"
 )
 
 var logger *logrus.Logger
@@ -128,20 +130,22 @@ func (nsf *NanoStateIndex) getPathFiles(root string) {
 	}
 }
 
-func (nsf *NanoStateIndex) GetStateById(id string) *NanoStateMeta {
+func (nsf *NanoStateIndex) GetStateById(id string) (*NanoStateMeta, error) {
 	fp, ok := nsf._id_index[id]
 	if !ok {
-		panic("ID does not exist")
+		return nil, fmt.Errorf("No state can be found by Id %s", id)
 	}
+
 	nstm := nsf._mt_index[fp]
-	return &nstm
+	return &nstm, nil
 }
 
-func (nsf *NanoStateIndex) GetStateByFileName(name string) *NanoStateMeta {
+func (nsf *NanoStateIndex) GetStateByFileName(name string) (*NanoStateMeta, error) {
 	fp, ok := nsf._fn_index[name]
 	if !ok {
-		panic("Filename does not exist")
+		return nil, fmt.Errorf("No state corresponds to the filename %s", name)
 	}
+
 	nstm := nsf._mt_index[fp]
-	return &nstm
+	return &nstm, nil
 }
