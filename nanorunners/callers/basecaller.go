@@ -1,6 +1,7 @@
 package nanocms_callers
 
 type AnsibleModule struct {
-	name string
-	args map[string]interface{}
+	stateRoots []string
+	name       string
+	args       map[string]interface{}
 }

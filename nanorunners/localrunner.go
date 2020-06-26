@@ -9,15 +9,22 @@ import (
 )
 
 type LocalRunner struct {
+	stateRoots []string
 	BaseRunner
 }
 
 func NewLocalRunner() *LocalRunner {
 	lr := new(LocalRunner)
 	lr.ref = lr
+	lr.stateRoots = make([]string, 0)
 	lr._errcode = ERR_INIT
 	lr._response = &RunnerResponse{}
 	return lr
+}
+
+// Set state roots
+func (lr *LocalRunner) setStateRoots(roots ...string) {
+	lr.stateRoots = append(lr.stateRoots, roots...)
 }
 
 // Call module commands
@@ -30,7 +37,7 @@ func (lr *LocalRunner) callShell(args interface{}) ([]RunnerHostResult, error) {
 }
 
 func (lr *LocalRunner) callAnsibleModule(name string, kwargs map[string]interface{}) ([]RunnerHostResult, error) {
-	caller := nanocms_callers.NewAnsibleLocalModuleCaller(name)
+	caller := nanocms_callers.NewAnsibleLocalModuleCaller(name).SetStateRoots(lr.stateRoots...)
 	ret, err := caller.SetArgs(kwargs).Call()
 
 	var errmsg string

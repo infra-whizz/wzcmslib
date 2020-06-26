@@ -60,6 +60,11 @@ func (nsf *NanoStateIndex) AddStateRoot(pth string) *NanoStateIndex {
 	return nsf
 }
 
+// GetStateRoots where states and collections are located
+func (nsf *NanoStateIndex) GetStateRoots() []string {
+	return nsf.stateRoots
+}
+
 // AddStateRoots is used to chain-add another state roots (array)
 func (nsf *NanoStateIndex) AddStateRoots(pth ...string) *NanoStateIndex {
 	for _, p := range pth {

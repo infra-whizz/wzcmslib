@@ -25,6 +25,7 @@ import (
 type SSHRunner struct {
 	BaseRunner
 	_hosts       []string
+	stateRoots   []string
 	_rsapath     string
 	_sshport     int
 	_sshverify   bool
@@ -40,11 +41,17 @@ func NewSSHRunner() *SSHRunner {
 	shr._errcode = ERR_INIT
 	shr._response = &RunnerResponse{}
 	shr._hosts = make([]string, 0)
+	shr.stateRoots = make([]string, 0)
 	shr._sshport = 22
 	shr._sshverify = true
 	shr.SetUserRSAKeys("")
 
 	return shr
+}
+
+// Set state roots
+func (shr *SSHRunner) setStateRoots(roots ...string) {
+	shr.stateRoots = append(shr.stateRoots, roots...)
 }
 
 // AddHost appends another remote host

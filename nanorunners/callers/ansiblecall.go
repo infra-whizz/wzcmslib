@@ -12,17 +12,46 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
+	"path/filepath"
 	"strings"
 )
 
 func NewAnsibleLocalModuleCaller(modulename string) *AnsibleModule {
 	am := new(AnsibleModule)
+	am.stateRoots = make([]string, 0)
 	am.name = strings.ToLower(strings.TrimPrefix(modulename, "ansible."))
 	am.args = map[string]interface{}{
 		"new": true,
 	}
 
 	return am
+}
+
+// SetStateRoots where module is going to be found.
+// NOTE: if the same module is located in a various roots, then first win
+func (am *AnsibleModule) SetStateRoots(roots ...string) *AnsibleModule {
+	am.stateRoots = append(am.stateRoots, roots...)
+	return am
+}
+
+// Resolve module path in 2.10+ collections style
+func (am *AnsibleModule) resolveModulePath() (string, error) {
+	modPath := ""
+	for _, stateRoot := range am.stateRoots {
+		suffPath := filepath.Clean(path.Join(stateRoot, "modules", strings.ReplaceAll(am.name, ".", "/")))
+		if err := filepath.Walk(stateRoot, func(pth string, info os.FileInfo, err error) error {
+			if strings.HasSuffix(pth, suffPath) {
+				modPath = pth
+				return fmt.Errorf("Module found")
+			}
+			return nil
+		}); err != nil {
+			break
+		}
+	}
+
+	return modPath, nil
 }
 
 // SetKwargs sets the key/value arguments
@@ -67,7 +96,9 @@ func (am *AnsibleModule) execModule(cfgpath string) (string, string, error) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	sh := exec.Command(am.name, cfgpath)
+	exePath, _ := am.resolveModulePath()
+
+	sh := exec.Command(exePath, cfgpath)
 	sh.Stdout = &stdout
 	sh.Stderr = &stderr
 

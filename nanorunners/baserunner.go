@@ -10,12 +10,19 @@ import (
 type IBaseRunner interface {
 	callShell(args interface{}) ([]RunnerHostResult, error)
 	callAnsibleModule(name string, kwargs map[string]interface{}) ([]RunnerHostResult, error)
+	setStateRoots(roots ...string)
 }
 
 type BaseRunner struct {
 	ref       IBaseRunner
 	_response *RunnerResponse
 	_errcode  int
+}
+
+// AddStateRoots of the collections
+func (br *BaseRunner) AddStateRoots(roots ...string) *BaseRunner {
+	br.ref.setStateRoots(roots...)
+	return br
 }
 
 // Run the compiled and loaded nanostate
