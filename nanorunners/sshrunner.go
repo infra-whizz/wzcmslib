@@ -9,9 +9,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/bramvdbogaerde/go-scp"
-	"github.com/bramvdbogaerde/go-scp/auth"
-	"golang.org/x/crypto/ssh"
 	"io/ioutil"
 	"log"
 	"os"
@@ -19,6 +16,10 @@ import (
 	"path"
 	"reflect"
 	"strings"
+
+	"github.com/bramvdbogaerde/go-scp"
+	"github.com/bramvdbogaerde/go-scp/auth"
+	"golang.org/x/crypto/ssh"
 )
 
 type SSHRunner struct {

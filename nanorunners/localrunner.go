@@ -2,9 +2,10 @@ package nanocms_runners
 
 import (
 	"bytes"
-	"github.com/infra-whizz/wzcmslib/nanorunners/callers"
 	"os/exec"
 	"strings"
+
+	nanocms_callers "github.com/infra-whizz/wzcmslib/nanorunners/callers"
 )
 
 type LocalRunner struct {

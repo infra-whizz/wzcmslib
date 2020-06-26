@@ -2,8 +2,9 @@ package nanocms_runners
 
 import (
 	"fmt"
-	"github.com/infra-whizz/wzcmslib/nanostate"
 	"strings"
+
+	nanocms_state "github.com/infra-whizz/wzcmslib/nanostate"
 )
 
 type IBaseRunner interface {
