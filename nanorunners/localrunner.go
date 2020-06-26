@@ -71,7 +71,7 @@ func (br *LocalRunner) runCommand(argset interface{}) *RunnerHostResult {
 		Response: response,
 	}
 
-	for icid, icmd := range argset.(map[interface{}]interface{}) {
+	for icid, icmd := range argset.(map[string]interface{}) {
 		cmd := icmd.(string)
 		args := make([]string, 0)
 		for idx, token := range strings.Split(strings.TrimSpace(cmd), " ") {
@@ -101,7 +101,7 @@ func (br *LocalRunner) runCommand(argset interface{}) *RunnerHostResult {
 			out.Errmsg = err.Error()
 			out.Errcode = ERR_FAILED
 		}
-		response[icid.(string)] = *out
+		response[icid] = *out
 	}
 
 	return result
