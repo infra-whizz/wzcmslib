@@ -70,6 +70,8 @@ func (tree *OTree) getMapSlice(data yaml.MapSlice, cnt *OTree) *OTree {
 				}
 			case reflect.String:
 				cnt.Set(item.Key, item.Value)
+			case reflect.Bool:
+				cnt.Set(item.Key, item.Value)
 			default:
 				panic(fmt.Errorf("Unknown type '%s' while loading state", kind))
 			}
@@ -178,6 +180,8 @@ func (tree *OTree) _to_structure(cnt map[string]interface{}, obj interface{}) in
 		return arr
 	} else if objType == reflect.String {
 		return obj.(string)
+	} else if objType == reflect.Bool {
+		return obj.(bool)
 	} else {
 		fmt.Println("unsupported DSL type:", objType)
 	}
