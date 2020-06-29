@@ -15,7 +15,7 @@ require (
 	github.com/stretchr/objx v0.1.1 // indirect
 	go.starlark.net v0.0.0-20200305232040-dcffbd0efcc1
 	golang.org/x/crypto v0.0.0-20200219234226-1ad67e1f0ef4
-	golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527 // indirect
+	golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f
 	gopkg.in/yaml.v2 v2.2.8 // indirect
 )
