@@ -15,6 +15,10 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	wzlib_traits "github.com/infra-whizz/wzlib/traits"
+
+	wzlib_traits_attributes "github.com/infra-whizz/wzlib/traits/attributes"
 )
 
 func NewAnsibleLocalModuleCaller(modulename string) *AnsibleModule {
@@ -35,11 +39,27 @@ func (am *AnsibleModule) SetStateRoots(roots ...string) *AnsibleModule {
 	return am
 }
 
+func (am *AnsibleModule) resolvePlatformPath() string {
+	traits := wzlib_traits.NewWzTraitsContainer()
+	sysInfo := wzlib_traits_attributes.NewSysInfo()
+	sysInfo.Load(traits)
+
+	var platform string
+	switch traits.Get("os.platform") {
+	case "ubuntu":
+		platform = "linux"
+	default:
+		platform = "linux" // TBD
+	}
+
+	return fmt.Sprintf("%s/%s", platform, traits.Get("arch"))
+}
+
 // Resolve module path in 2.10+ collections style
 func (am *AnsibleModule) resolveModulePath() (string, error) {
 	modPath := ""
 	for _, stateRoot := range am.stateRoots {
-		suffPath := filepath.Clean(path.Join(stateRoot, "modules", strings.ReplaceAll(am.name, ".", "/")))
+		suffPath := filepath.Clean(path.Join(stateRoot, "modules", am.resolvePlatformPath(), strings.ReplaceAll(am.name, ".", "/")))
 		if err := filepath.Walk(stateRoot, func(pth string, info os.FileInfo, err error) error {
 			if strings.HasSuffix(pth, suffPath) {
 				modPath = pth
