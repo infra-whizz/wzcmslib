@@ -41,18 +41,14 @@ func (am *AnsibleModule) SetStateRoots(roots ...string) *AnsibleModule {
 
 func (am *AnsibleModule) resolvePlatformPath() string {
 	traits := wzlib_traits.NewWzTraitsContainer()
-	sysInfo := wzlib_traits_attributes.NewSysInfo()
-	sysInfo.Load(traits)
+	wzlib_traits_attributes.NewSysInfo().Load(traits)
 
-	var platform string
-	switch traits.Get("os.platform") {
-	case "ubuntu":
-		platform = "linux"
-	default:
-		platform = "linux" // TBD
+	sysName := traits.Get("os.sysname")
+	if sysName == nil {
+		return fmt.Sprintf("generic/%s", traits.Get("arch"))
 	}
 
-	return fmt.Sprintf("%s/%s", platform, traits.Get("arch"))
+	return fmt.Sprintf("%s/%s", sysName, traits.Get("arch"))
 }
 
 // Resolve module path in 2.10+ collections style
