@@ -25,9 +25,7 @@ func NewAnsibleLocalModuleCaller(modulename string) *AnsibleModule {
 	am := new(AnsibleModule)
 	am.stateRoots = make([]string, 0)
 	am.name = strings.ToLower(strings.TrimPrefix(modulename, "ansible."))
-	am.args = map[string]interface{}{
-		"new": true,
-	}
+	am.args = map[string]interface{}{}
 
 	return am
 }
@@ -150,7 +148,12 @@ func (am *AnsibleModule) makeConfigFile() (*os.File, error) {
 		return nil, err
 	}
 
-	data, err := json.Marshal(am.args)
+	var data []byte
+	if am.modType == BINARY {
+		data, err = json.Marshal(am.args)
+	} else {
+		data, err = json.Marshal(map[string]interface{}{"ANSIBLE_MODULE_ARGS": am.args})
+	}
 	if err != nil {
 		return nil, err
 	}
