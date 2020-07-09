@@ -17,8 +17,8 @@ import (
 	"strings"
 
 	wzlib_traits "github.com/infra-whizz/wzlib/traits"
-
 	wzlib_traits_attributes "github.com/infra-whizz/wzlib/traits/attributes"
+	wzlib_utils "github.com/infra-whizz/wzlib/utils"
 )
 
 func NewAnsibleLocalModuleCaller(modulename string) *AnsibleModule {
@@ -54,12 +54,27 @@ func (am *AnsibleModule) resolvePlatformPath() string {
 // Resolve module path in 2.10+ collections style
 func (am *AnsibleModule) resolveModulePath() (string, error) {
 	modPath := ""
+	platformPath := am.resolvePlatformPath()
 	for _, stateRoot := range am.stateRoots {
-		suffPath := filepath.Clean(path.Join(stateRoot, "modules", am.resolvePlatformPath(), strings.ReplaceAll(am.name, ".", "/")))
-		if err := filepath.Walk(stateRoot, func(pth string, info os.FileInfo, err error) error {
-			if strings.HasSuffix(pth, suffPath) {
-				modPath = pth
-				return fmt.Errorf("Module found")
+		moduleRoot := filepath.Clean(path.Join(stateRoot, "modules"))
+		suffBinPath := filepath.Clean(path.Join(moduleRoot, "bin", platformPath, strings.ReplaceAll(am.name, ".", "/")))
+		suffPyPath := filepath.Clean(path.Join(moduleRoot, strings.ReplaceAll(am.name, ".", "/")+".py"))
+
+		if err := filepath.Walk(moduleRoot, func(pth string, info os.FileInfo, err error) error {
+			contentType, _ := wzlib_utils.FileContentTypeByPath(pth)
+			switch contentType {
+			case "application/octet-stream":
+				if strings.HasSuffix(pth, suffBinPath) {
+					modPath = pth
+					am.modType = BINARY
+					return fmt.Errorf("Binary module found")
+				}
+			case "text/plain":
+				if strings.HasSuffix(pth, suffPyPath) {
+					modPath = pth
+					am.modType = SCRIPT
+					return fmt.Errorf("Python module found")
+				}
 			}
 			return nil
 		}); err != nil {
@@ -96,7 +111,7 @@ func (am *AnsibleModule) Call() (map[string]interface{}, error) {
 		if stderr != "" {
 			fmt.Println(stderr)
 		}
-		if err != nil {
+		if err != nil && stdout == "" && stderr == "" {
 			return nil, err
 		}
 		err = json.Unmarshal([]byte(stdout), &ret)
@@ -113,8 +128,14 @@ func (am *AnsibleModule) execModule(cfgpath string) (string, string, error) {
 	var stderr bytes.Buffer
 
 	exePath, _ := am.resolveModulePath()
-
-	sh := exec.Command(exePath, cfgpath)
+	var sh *exec.Cmd
+	if am.modType == BINARY {
+		sh = exec.Command(exePath, cfgpath)
+	} else if am.modType == SCRIPT {
+		sh = exec.Command("python", exePath, cfgpath)
+	} else {
+		return "", "", fmt.Errorf("Module %s was not found", am.name)
+	}
 	sh.Stdout = &stdout
 	sh.Stderr = &stderr
 
