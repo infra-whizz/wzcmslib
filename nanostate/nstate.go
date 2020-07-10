@@ -65,9 +65,10 @@ type StateGroup struct {
 }
 
 type Nanostate struct {
-	Id     string
-	Descr  string
-	Groups []*StateGroup
+	Id         string
+	Descr      string
+	Groups     []*StateGroup
+	GroupIndex []string
 }
 
 func NewNanostate() *Nanostate {
@@ -75,10 +76,27 @@ func NewNanostate() *Nanostate {
 	return pb
 }
 
+func (pb *Nanostate) reorderGroups() []*StateGroup {
+	orderedGroups := make([]*StateGroup, 0)
+	for _, groupId := range pb.GroupIndex {
+		for _, group := range pb.Groups {
+			if group.Id == groupId {
+				orderedGroups = append(orderedGroups, group)
+			}
+		}
+	}
+	return orderedGroups
+}
+
 // Load Nanostate tree, which is already compiled statically and vaildated.
 func (pb *Nanostate) Load(tree *nanocms_compiler.OTree) error {
 	pb.Groups = make([]*StateGroup, 0)
+	pb.GroupIndex = make([]string, 0)
 	sTree := tree.Serialise()
+
+	for _, groupId := range tree.GetBranch("state").Keys() {
+		pb.GroupIndex = append(pb.GroupIndex, groupId.(string))
+	}
 
 	for _, rootKey := range []string{"id", "description", "state"} {
 		if val, ex := sTree[rootKey]; ex {
@@ -92,6 +110,8 @@ func (pb *Nanostate) Load(tree *nanocms_compiler.OTree) error {
 			}
 		}
 	}
+
+	pb.Groups = pb.reorderGroups()
 
 	var err error
 	if pb.Id == "" || pb.Descr == "" || pb.Groups == nil {
