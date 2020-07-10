@@ -9,6 +9,7 @@ require (
 	github.com/go-yaml/yaml v2.1.0+incompatible
 	github.com/google/uuid v1.1.1
 	github.com/infra-whizz/wzlib v0.0.0-20200622182529-c99727f3707a
+	github.com/karrick/godirwalk v1.15.6
 	github.com/kr/text v0.2.0 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/sirupsen/logrus v1.5.0
