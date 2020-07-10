@@ -10,6 +10,7 @@ type RefList struct {
 	referenced_jobs map[string]bool
 	required_jobs   map[string]bool // Their content
 	visited         []string
+	optional        []string // Those with "+" that might not be there
 }
 
 func NewRefList() *RefList {
@@ -47,6 +48,24 @@ func (rl *RefList) GetIncluded() []string {
 	return refs
 }
 
+func (rl *RefList) GetMandatoryUnresolved() []string {
+	mandatory := make([]string, 0)
+	for _, unresolved := range rl.GetIncluded() {
+		is_mandatory := true
+		for _, optional := range rl.optional {
+			if optional == unresolved {
+				is_mandatory = false
+				break
+			}
+		}
+		if is_mandatory {
+			mandatory = append(mandatory, unresolved)
+		}
+	}
+	fmt.Println("Mandatory:", mandatory)
+	return mandatory
+}
+
 // MarkVisited marks a reference as "seen" and "requested".
 // If it gets marked again, it means the request wasn't completed,
 // so we hit a infinite cycle, which needs to be broken out.
@@ -79,6 +98,7 @@ func (rl *RefList) Flush() *RefList {
 	rl.referenced_jobs = make(map[string]bool) // the entire blocks
 	rl.required_jobs = make(map[string]bool)   // their content
 	rl.visited = make([]string, 0)
+	rl.optional = make([]string, 0)
 
 	return rl
 }
@@ -86,14 +106,17 @@ func (rl *RefList) Flush() *RefList {
 func (rl *RefList) findRefs(state *OTree) {
 	for _, blockExpr := range state.GetBranch("state").Keys() {
 		expr := blockExpr.(string)
-		if strings.Contains(expr, "~") || strings.Contains(expr, "&") {
+		if strings.Contains(expr, "~") || strings.Contains(expr, "&") || strings.Contains(expr, "+") {
 			for _, expr_t := range strings.Split(expr, " ") {
-				if strings.HasPrefix(expr_t, "~") {
+				if strings.HasPrefix(expr_t, "~") || strings.HasPrefix(expr_t, "+") {
 					if !strings.Contains(expr_t, "/") { // Include the entire state
 						expr_t += "/"
 					}
 					rl.included[strings.Split(expr_t, "/")[0][1:]] = true
 					rl.required_jobs[strings.Split(expr_t, "/")[1]] = true
+					if strings.HasPrefix(expr_t, "+") {
+						rl.optional = append(rl.optional, strings.Split(expr_t, "/")[0][1:])
+					}
 				} else if strings.HasPrefix(expr_t, "&") {
 					rl.included[strings.Split(expr_t, "/")[0][1:]] = true
 					rl.referenced_jobs[strings.Split(expr_t, "/")[1]] = true

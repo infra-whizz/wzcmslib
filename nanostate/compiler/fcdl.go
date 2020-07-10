@@ -11,6 +11,7 @@ const (
 	CDL_T_INCLUSION = iota
 	CDL_T_DEPENDENCY
 	CDL_T_LOOP
+	CDL_T_OPTIONAL_INCLUSION
 )
 
 type CDLLoop struct {
@@ -190,15 +191,21 @@ func (cdl *CDLFunc) GetInclusion(stateid string, line string) (*CDLInclusion, er
 	incl := &CDLInclusion{
 		Blocks: make([]string, 0),
 	}
-	if strings.Contains(line, "~") {
+	if strings.Contains(line, "~") || strings.Contains(line, "+") {
 		for _, token := range strings.Split(line, " ") {
 			if token == "" {
 				continue
 			}
 			token = strings.TrimSpace(strings.TrimSuffix(token, "/"))
 
-			if strings.HasPrefix(token, "~") {
-				inclPath := append(strings.Split(strings.ReplaceAll(token, "~", ""), "/"), "")[:2]
+			if strings.HasPrefix(token, "~") || strings.HasPrefix(token, "+") {
+				var incOp string
+				if strings.HasPrefix(token, "~") {
+					incOp = "~"
+				} else {
+					incOp = "+"
+				}
+				inclPath := append(strings.Split(strings.ReplaceAll(token, incOp, ""), "/"), "")[:2]
 				incl.Stateid = inclPath[0]
 				if inclPath[1] != "" {
 					incl.Blocks = strings.Split(inclPath[1], ":")
@@ -256,14 +263,16 @@ func (cdl *CDLFunc) BlockType(stateid string, line string) (int, error) {
 		return -1, fmt.Errorf("Line '%s' in '%s' cannot be both inclusion and reference", stateid, line)
 	}
 	if strings.Contains(line, "~") {
-		return CDL_T_INCLUSION, err
+		return CDL_T_INCLUSION, nil
 	} else if strings.Contains(line, "&") {
-		return CDL_T_DEPENDENCY, err
+		return CDL_T_DEPENDENCY, nil
 	} else if strings.Contains(line, "[]") {
 		if strings.Contains(line, "~") || strings.Contains(line, "&") {
 			return -1, fmt.Errorf("Loop at '%s' in '%s' cannot be inclusion or a reference", stateid, line)
 		}
-		return CDL_T_LOOP, err
+		return CDL_T_LOOP, nil
+	} else if strings.Contains(line, "+") {
+		return CDL_T_OPTIONAL_INCLUSION, nil
 	}
 
 	return -1, err

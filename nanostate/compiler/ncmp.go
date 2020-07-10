@@ -104,13 +104,17 @@ func (nstc *NstCompiler) Cycle() string {
 	for _, id := range nstc._unresolved.GetIncluded() {
 		return nstc._unresolved.MarkStateRequested(id)
 	}
-
-	// Everything seems resolved, compile now
-	if err := nstc.compile(); err != nil {
-		panic(err)
-	}
-
 	return ""
+}
+
+// Compile tree
+func (nstc *NstCompiler) Compile() error {
+	if nstc.tree == nil {
+		if err := nstc.compile(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (nstc *NstCompiler) Dump() {
@@ -119,9 +123,12 @@ func (nstc *NstCompiler) Dump() {
 
 // Tree returns completed tree
 func (nstc *NstCompiler) Tree() *OTree {
-	if len(nstc._unresolved.GetIncluded()) > 0 {
-		panic("Calling for compiled tree when unresolved sources are still pending")
+	mandatory := nstc._unresolved.GetMandatoryUnresolved()
+	if len(mandatory) > 0 {
+		panic(fmt.Sprintf("Calling for compiled tree when unresolved sources are still pending: %s", strings.Join(mandatory, ", ")))
 	}
+
+	nstc.Compile()
 
 	return nstc.tree
 }
@@ -134,10 +141,16 @@ func (nstc *NstCompiler) traceSource(state *OTree, msg string, args ...interface
 }
 
 // Compile inclusion
-func (nstc *NstCompiler) compileInclusion(stateid string, target *OTree, block string) {
+func (nstc *NstCompiler) compileInclusion(stateid string, target *OTree, block string, mandatory bool) {
 	// Fetch that inclusion, compile it here
 	inclusion, _ := nstc._functions.GetInclusion(stateid, block)
 	if _, ex := nstc._states[inclusion.Stateid]; !ex {
+		for _, optinal := range nstc._unresolved.optional {
+			if inclusion.Stateid == optinal {
+				fmt.Printf("Optional state %s was not found. Skipping.\n", inclusion.Stateid)
+				return
+			}
+		}
 		panic(fmt.Errorf("Cannot include state '%s': not found", inclusion.Stateid))
 	}
 
@@ -218,9 +231,13 @@ func (nstc *NstCompiler) compileState(state *OTree) *OTree {
 			panic(err.Error())
 		}
 
+		fmt.Println("Block type:", blocktype, blockdef)
+
 		switch blocktype {
 		case CDL_T_INCLUSION:
-			nstc.compileInclusion(state.GetString("id"), tree, blockdef)
+			nstc.compileInclusion(state.GetString("id"), tree, blockdef, true)
+		case CDL_T_OPTIONAL_INCLUSION:
+			nstc.compileInclusion(state.GetString("id"), tree, blockdef, false)
 		case CDL_T_DEPENDENCY:
 			nstc.compileDependency(state.GetString("id"), branch, tree, blockdef)
 		default:
@@ -277,6 +294,5 @@ func (nstc *NstCompiler) compile() error {
 	}
 
 	nstc.tree.Set("state", nstc.compileState(rootstate))
-
 	return nil
 }
