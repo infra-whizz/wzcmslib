@@ -85,7 +85,14 @@ func (cdl *CDLFunc) getConditionsFromLine(line string) []string {
 func (cdl *CDLFunc) Condition(stateid string, line string) bool {
 	conditions := cdl.getConditionsFromLine(line)
 	for _, fn := range conditions {
-		res, err := cdl.threads[stateid].Call(fn, nil, nil)
+		state, ex := cdl.threads[stateid]
+		if !ex {
+			panic(fmt.Errorf("State '%s.st' does not have assotiated Python "+
+				"file '%s.fn' where should be a function '%s()'. To resolve this, "+
+				"create a file '%s.fn' in the same directory where the state is, "+
+				"and define that function there.", stateid, stateid, fn, stateid))
+		}
+		res, err := state.Call(fn, nil, nil)
 		if err != nil {
 			panic(fmt.Errorf("Error calling state '%s': %s", stateid, err.Error()))
 		}
