@@ -23,7 +23,7 @@ state:                                       # State tree
         name: postgresql                     # See "pgsql.st" how it is done.
         state: started
 
-  # Inclusion is a path of the following format:
+  # Mandatory inclusion is a path of the following format:
   #
   #    ~<STATE-ID>/[BLOCK]
   #
@@ -40,6 +40,8 @@ state:                                       # State tree
 
   #~pgsql-id/update-pgsql ?pgsql_present:
   #~pgsql-id ?pgsql_present:
+
+  # Optional inclusion is like mandatory inclusion, just "+" instead of "~"
 
   install-emacs-apt ?is_debian_family:
     - packaging.os.apt:
