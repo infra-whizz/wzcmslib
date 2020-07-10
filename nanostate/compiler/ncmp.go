@@ -9,11 +9,12 @@ package nanocms_compiler
 import (
 	"errors"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
-	"github.com/go-yaml/yaml"
 	"io/ioutil"
 	"os"
 	"strings"
+
+	"github.com/davecgh/go-spew/spew"
+	"github.com/go-yaml/yaml"
 )
 
 type NstCompiler struct {
@@ -49,7 +50,7 @@ func (nstc *NstCompiler) LoadFile(nstpath string) error {
 			data, err := ioutil.ReadAll(fh)
 			if err == nil {
 				id, err := nstc.loadBytes(data)
-				nstc.loadStarlarkFile(id, strings.TrimSuffix(nstpath, ".st")+".fc")
+				nstc.loadStarlarkFile(id, strings.TrimSuffix(nstpath, ".st")+".fn")
 				return err
 			}
 		}
