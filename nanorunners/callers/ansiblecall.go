@@ -16,6 +16,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/karrick/godirwalk"
+
 	wzlib_traits "github.com/infra-whizz/wzlib/traits"
 	wzlib_traits_attributes "github.com/infra-whizz/wzlib/traits/attributes"
 	wzlib_utils "github.com/infra-whizz/wzlib/utils"
@@ -58,23 +60,28 @@ func (am *AnsibleModule) resolveModulePath() (string, error) {
 		suffBinPath := filepath.Clean(path.Join(moduleRoot, "bin", platformPath, strings.ReplaceAll(am.name, ".", "/")))
 		suffPyPath := filepath.Clean(path.Join(moduleRoot, strings.ReplaceAll(am.name, ".", "/")+".py"))
 
-		if err := filepath.Walk(moduleRoot, func(pth string, info os.FileInfo, err error) error {
-			contentType, _ := wzlib_utils.FileContentTypeByPath(pth)
-			switch contentType {
-			case "application/octet-stream":
-				if strings.HasSuffix(pth, suffBinPath) {
-					modPath = pth
-					am.modType = BINARY
-					return fmt.Errorf("Binary module found")
+		if err := godirwalk.Walk(moduleRoot, &godirwalk.Options{
+			Unsorted:            true,
+			FollowSymbolicLinks: true,
+			Callback: func(pth string, info *godirwalk.Dirent) error {
+				contentType, _ := wzlib_utils.FileContentTypeByPath(pth)
+				switch contentType {
+				case "application/octet-stream":
+					if strings.HasSuffix(pth, suffBinPath) {
+						modPath = pth
+						am.modType = BINARY
+						return fmt.Errorf("Binary module found")
+					}
+				case "text/plain":
+					if strings.HasSuffix(pth, suffPyPath) {
+						modPath = pth
+						am.modType = SCRIPT
+						return fmt.Errorf("Python module found")
+					}
 				}
-			case "text/plain":
-				if strings.HasSuffix(pth, suffPyPath) {
-					modPath = pth
-					am.modType = SCRIPT
-					return fmt.Errorf("Python module found")
-				}
-			}
-			return nil
+				return nil
+			},
+			ErrorCallback: func(pth string, err error) godirwalk.ErrorAction { return godirwalk.SkipNode },
 		}); err != nil {
 			break
 		}
