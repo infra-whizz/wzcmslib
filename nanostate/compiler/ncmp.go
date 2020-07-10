@@ -141,7 +141,7 @@ func (nstc *NstCompiler) traceSource(state *OTree, msg string, args ...interface
 }
 
 // Compile inclusion
-func (nstc *NstCompiler) compileInclusion(stateid string, target *OTree, block string, mandatory bool) {
+func (nstc *NstCompiler) compileInclusion(stateid string, target *OTree, block string) {
 	// Fetch that inclusion, compile it here
 	inclusion, _ := nstc._functions.GetInclusion(stateid, block)
 	if _, ex := nstc._states[inclusion.Stateid]; !ex {
@@ -234,10 +234,8 @@ func (nstc *NstCompiler) compileState(state *OTree) *OTree {
 		fmt.Println("Block type:", blocktype, blockdef)
 
 		switch blocktype {
-		case CDL_T_INCLUSION:
-			nstc.compileInclusion(state.GetString("id"), tree, blockdef, true)
-		case CDL_T_OPTIONAL_INCLUSION:
-			nstc.compileInclusion(state.GetString("id"), tree, blockdef, false)
+		case CDL_T_INCLUSION, CDL_T_OPTIONAL_INCLUSION:
+			nstc.compileInclusion(state.GetString("id"), tree, blockdef)
 		case CDL_T_DEPENDENCY:
 			nstc.compileDependency(state.GetString("id"), branch, tree, blockdef)
 		default:
