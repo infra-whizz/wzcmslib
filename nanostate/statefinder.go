@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/go-yaml/yaml"
 	"github.com/infra-whizz/wzcmslib/nanoutils"
@@ -99,7 +100,7 @@ func (nsf *NanoStateIndex) getStateId(pth string) (string, error) {
 	}
 	stateId, ex := state["id"]
 	if !ex {
-		panic("State has no id")
+		return "", fmt.Errorf("State %s has no id, skipping", pth)
 	}
 	return stateId.(string), nil
 }
@@ -110,7 +111,7 @@ func (nsf *NanoStateIndex) getPathFiles(root string) {
 			if err != nil {
 				return err
 			}
-			if !info.IsDir() {
+			if !info.IsDir() && strings.HasSuffix(info.Name(), ".st") { // Filter out only state files
 				stateId, err := nsf.getStateId(pth)
 				if err != nil {
 					logger.Debugln("Skipping state", pth)
