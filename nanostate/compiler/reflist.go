@@ -62,7 +62,6 @@ func (rl *RefList) GetMandatoryUnresolved() []string {
 			mandatory = append(mandatory, unresolved)
 		}
 	}
-	fmt.Println("Mandatory:", mandatory)
 	return mandatory
 }
 
