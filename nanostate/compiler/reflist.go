@@ -69,6 +69,9 @@ func (rl *RefList) GetMandatoryUnresolved() []string {
 // If it gets marked again, it means the request wasn't completed,
 // so we hit a infinite cycle, which needs to be broken out.
 func (rl *RefList) MarkStateRequested(id string) string {
+	if id == "" {
+		return id
+	}
 	for _, mark := range rl.visited {
 		if mark == id {
 			panic(fmt.Errorf("State with ID '%s' still wasn't resolved", id))
