@@ -107,6 +107,11 @@ func (nstc *NstCompiler) Cycle() string {
 	return ""
 }
 
+func (nstc *NstCompiler) SquashState(id string) {
+	nstc._unresolved.visited = append(nstc._unresolved.visited, id)
+	delete(nstc._unresolved.included, id)
+}
+
 // Compile tree
 func (nstc *NstCompiler) Compile() error {
 	if nstc.tree == nil {
