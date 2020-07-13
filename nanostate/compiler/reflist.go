@@ -50,7 +50,7 @@ func (rl *RefList) GetIncluded() []string {
 
 func (rl *RefList) GetMandatoryUnresolved() []string {
 	mandatory := make([]string, 0)
-	for _, unresolved := range rl.GetIncluded() {
+	for unresolved := range rl.included {
 		is_mandatory := true
 		for _, optional := range rl.optional {
 			if optional == unresolved {
