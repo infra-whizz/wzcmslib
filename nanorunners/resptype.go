@@ -24,6 +24,7 @@ type RunnerResponseModule struct {
 	Response []RunnerHostResult
 }
 type RunnerResponseGroup struct {
+	GroupId  string
 	Errcode  int
 	Errmsg   string
 	Response []RunnerResponseModule
@@ -32,7 +33,7 @@ type RunnerResponseGroup struct {
 type RunnerResponse struct {
 	Id          string
 	Description string
-	Groups      map[string]RunnerResponseGroup
+	Groups      []RunnerResponseGroup
 }
 
 // JSON output of the response structure

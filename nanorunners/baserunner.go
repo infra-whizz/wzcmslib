@@ -30,10 +30,11 @@ func (br *BaseRunner) Run(state *nanocms_state.Nanostate) bool {
 	errors := 0
 	br._response.Id = state.Id
 	br._response.Description = state.Descr
-	groups := make(map[string]RunnerResponseGroup)
+	groups := make([]RunnerResponseGroup, 0)
 
-	for _, group := range state.Groups {
+	for _, group := range state.OrderedGroups() { // At this point groups are anyway already ordered at .Groups
 		resp := &RunnerResponseGroup{
+			GroupId: group.Id,
 			Errcode: -1,
 		}
 		response, err := br.runGroup(group.Group)
@@ -43,7 +44,7 @@ func (br *BaseRunner) Run(state *nanocms_state.Nanostate) bool {
 		} else {
 			resp.Response = response
 		}
-		groups[group.Id] = *resp
+		groups = append(groups, *resp)
 	}
 	br._response.Groups = groups
 

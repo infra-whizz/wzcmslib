@@ -76,7 +76,7 @@ func NewNanostate() *Nanostate {
 	return pb
 }
 
-func (pb *Nanostate) reorderGroups() []*StateGroup {
+func (pb *Nanostate) OrderedGroups() []*StateGroup {
 	orderedGroups := make([]*StateGroup, 0)
 	for _, groupId := range pb.GroupIndex {
 		for _, group := range pb.Groups {
@@ -111,7 +111,7 @@ func (pb *Nanostate) Load(tree *nanocms_compiler.OTree) error {
 		}
 	}
 
-	pb.Groups = pb.reorderGroups()
+	pb.Groups = pb.OrderedGroups()
 
 	var err error
 	if pb.Id == "" || pb.Descr == "" || pb.Groups == nil {
