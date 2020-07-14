@@ -1,7 +1,8 @@
 #
 # Domain Language Design
 #
-# "~"  -- reference to to include other state/job
+# "~"  -- reference to include other state/job
+# "+"  -- reference to optionally include other state/job (ignored if not found). Similar behaviour to "*.d" config dirs.
 # "&"  -- reference of job dependency (should be performed before)
 # "?"  -- function returns a condition (Ansible's "when")
 # "[]" -- function returns a list of objects and applies N times to the operand
