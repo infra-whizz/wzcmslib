@@ -18,7 +18,8 @@ func init() {
 	traits.SetKey(starlark.String("kernelversion"), starlark.String("#132-Ubuntu SMP Tue Jan 9 19:52:39 UTC 2018"))
 
 	BuiltinMap = starlark.StringDict{
-		"traits": traits,
-		"uptime": starlark.NewBuiltin("uptime", Stk_Uptime),
+		"traits":         traits,
+		"os_environ":     starlark.NewBuiltin("os_environ", Stk_OsEnviron),
+		"os_get_environ": starlark.NewBuiltin("os_get_environ", Stk_OsEnvironKey),
 	}
 }
