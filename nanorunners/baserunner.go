@@ -40,6 +40,7 @@ func (br *BaseRunner) Run(state *nanocms_state.Nanostate) bool {
 		response, err := br.runGroup(group.Group)
 		if err != nil {
 			resp.Errmsg = err.Error()
+			resp.Errcode = ERR_FAILED
 			errors++
 		} else {
 			resp.Response = response
@@ -48,6 +49,12 @@ func (br *BaseRunner) Run(state *nanocms_state.Nanostate) bool {
 	}
 	br._response.Groups = groups
 
+	switch errors {
+	case 0:
+		br._errcode = ERR_OK
+	default:
+		br._errcode = ERR_FAILED
+	}
 	return errors == 0
 }
 
