@@ -37,6 +37,7 @@ func (lr *LocalRunner) callShell(args interface{}) ([]RunnerHostResult, error) {
 }
 
 func (lr *LocalRunner) callAnsibleModule(name string, kwargs map[string]interface{}) ([]RunnerHostResult, error) {
+	lr.GetLogger().Debugf("Calling external module '%s': %v", name, kwargs)
 	caller := nanocms_callers.NewAnsibleLocalModuleCaller(name).SetStateRoots(lr.stateRoots...)
 	ret, err := caller.SetArgs(kwargs).Call()
 
@@ -85,6 +86,8 @@ func (br *LocalRunner) runCommand(argset interface{}) *RunnerHostResult {
 		}
 		var stdout bytes.Buffer
 		var stderr bytes.Buffer
+
+		br.GetLogger().Debugf("Running command '%s' args: '%v'", cmd, args)
 
 		sh := exec.Command(cmd, args...)
 		sh.Stdout = &stdout

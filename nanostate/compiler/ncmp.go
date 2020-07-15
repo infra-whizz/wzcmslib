@@ -236,8 +236,6 @@ func (nstc *NstCompiler) compileState(state *OTree) *OTree {
 			panic(err.Error())
 		}
 
-		fmt.Println("Block type:", blocktype, blockdef)
-
 		switch blocktype {
 		case CDL_T_INCLUSION, CDL_T_OPTIONAL_INCLUSION:
 			nstc.compileInclusion(state.GetString("id"), tree, blockdef)

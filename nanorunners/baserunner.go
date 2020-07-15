@@ -1,10 +1,10 @@
 package nanocms_runners
 
 import (
-	"fmt"
 	"strings"
 
 	nanocms_state "github.com/infra-whizz/wzcmslib/nanostate"
+	wzlib_logger "github.com/infra-whizz/wzlib/logger"
 )
 
 type IBaseRunner interface {
@@ -17,6 +17,7 @@ type BaseRunner struct {
 	ref       IBaseRunner
 	_response *RunnerResponse
 	_errcode  int
+	wzlib_logger.WzLogger
 }
 
 // AddStateRoots of the collections
@@ -37,6 +38,7 @@ func (br *BaseRunner) Run(state *nanocms_state.Nanostate) bool {
 			GroupId: group.Id,
 			Errcode: -1,
 		}
+		br.GetLogger().Debugf("Processing group '%s'", group.Id)
 		response, err := br.runGroup(group.Group)
 		if err != nil {
 			resp.Errmsg = err.Error()
@@ -55,6 +57,8 @@ func (br *BaseRunner) Run(state *nanocms_state.Nanostate) bool {
 	default:
 		br._errcode = ERR_FAILED
 	}
+
+	br.GetLogger().Debugf("Cycle is finished")
 	return errors == 0
 }
 
@@ -84,7 +88,7 @@ func (br *BaseRunner) runGroup(group []*nanocms_state.StateModule) ([]RunnerResp
 			br.setGroupResponse(cycle, response, err)
 			resp = append(resp, *cycle)
 		} else {
-			fmt.Println(">>> ERROR: module", cycle.Module, "is not supported")
+			br.GetLogger().Errorf("Module %s is not supported", cycle.Module)
 		}
 	}
 	return resp, nil
@@ -92,12 +96,12 @@ func (br *BaseRunner) runGroup(group []*nanocms_state.StateModule) ([]RunnerResp
 
 // Calls shell commands (both remotely or locally)
 func (br *BaseRunner) callShell(args interface{}) ([]RunnerHostResult, error) {
-	panic("Abstract method")
+	panic("Abstract method call")
 }
 
 // Runs Ansible module (both remotely or locally)
 func (br *BaseRunner) callAnsibleModule(name string, kwargs map[string]interface{}) ([]RunnerHostResult, error) {
-	panic("Abstract method")
+	panic("Abstract method call")
 }
 
 // Response returns a map of string/any structure for further processing
