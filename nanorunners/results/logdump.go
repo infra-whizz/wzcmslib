@@ -126,8 +126,16 @@ func (rtl *ResultsToLog) ToLog() []*ResultLogEntry {
 								})
 							}
 							// Add module results
+							var level logrus.Level
+							if moduleCallResult.Json["failed"].(bool) {
+								level = logrus.ErrorLevel
+							} else if !moduleCallResult.Json["changed"].(bool) {
+								level = logrus.WarnLevel
+							} else {
+								level = logrus.InfoLevel
+							}
 							messages = append(messages, &ResultLogEntry{
-								Level: logrus.InfoLevel,
+								Level: level,
 								Message: fmt.Sprintf("%s - changed: %v, failed: %v",
 									moduleId, moduleCallResult.Json["changed"],
 									moduleCallResult.Json["failed"]),
