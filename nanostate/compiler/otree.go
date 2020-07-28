@@ -46,8 +46,15 @@ func (tree *OTree) LoadMapSlice(data yaml.MapSlice) *OTree {
 func (tree *OTree) getArray(data interface{}) []interface{} {
 	cnt := make([]interface{}, 0)
 
-	for _, el := range data.([]interface{}) {
-		cnt = append(cnt, tree.getMapSlice(el.(yaml.MapSlice), nil))
+	for _, element := range data.([]interface{}) {
+		switch reflect.TypeOf(element).Kind() {
+		case reflect.String:
+			cnt = append(cnt, element.(string))
+		case reflect.Slice:
+			cnt = append(cnt, tree.getMapSlice(element.(yaml.MapSlice), nil))
+		default:
+			panic(fmt.Sprintf("Value %s has an unsupported type %s", element, reflect.TypeOf(element)))
+		}
 	}
 
 	return cnt
