@@ -127,9 +127,12 @@ func (rtl *ResultsToLog) ToLog() []*ResultLogEntry {
 							}
 							// Add module results
 							var level logrus.Level
-							if moduleCallResult.Json["failed"].(bool) {
+
+							failed, fex := moduleCallResult.Json["failed"]
+							changed, cex := moduleCallResult.Json["changed"]
+							if fex && failed.(bool) {
 								level = logrus.ErrorLevel
-							} else if !moduleCallResult.Json["changed"].(bool) {
+							} else if cex && !changed.(bool) {
 								level = logrus.WarnLevel
 							} else {
 								level = logrus.InfoLevel
