@@ -14,5 +14,6 @@ type AnsibleModule struct {
 	name       string
 	args       map[string]interface{}
 	modType    int
+	pyexe      []string // Interpreter shebang, e.g. "/usr/bin/python3" or "/usr/bin/env python" etc.
 	wzlib_logger.WzLogger
 }

@@ -17,6 +17,8 @@ type BaseRunner struct {
 	ref       IBaseRunner
 	_response *RunnerResponse
 	_errcode  int
+
+	pyexe string // Python shebang for Ansible modules
 	wzlib_logger.WzLogger
 }
 

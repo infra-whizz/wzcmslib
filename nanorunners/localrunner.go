@@ -22,6 +22,13 @@ func NewLocalRunner() *LocalRunner {
 	return lr
 }
 
+// SetPyInterpreter to the local runner's Python written modules in Ansible.
+// This is used to resolve Python dependencies, where Ansible library is mainly installed
+func (lr *LocalRunner) SetPyInterpreter(pyexe string) *LocalRunner {
+	lr.pyexe = pyexe
+	return lr
+}
+
 // Set state roots
 func (lr *LocalRunner) setStateRoots(roots ...string) {
 	lr.stateRoots = append(lr.stateRoots, roots...)
@@ -38,7 +45,7 @@ func (lr *LocalRunner) callShell(args interface{}) ([]RunnerHostResult, error) {
 
 func (lr *LocalRunner) callAnsibleModule(name string, kwargs map[string]interface{}) ([]RunnerHostResult, error) {
 	lr.GetLogger().Debugf("Calling external module '%s': %v", name, kwargs)
-	caller := nanocms_callers.NewAnsibleLocalModuleCaller(name).SetStateRoots(lr.stateRoots...)
+	caller := nanocms_callers.NewAnsibleLocalModuleCaller(name).SetStateRoots(lr.stateRoots...).SetPyInterpreter(lr.pyexe)
 	ret, err := caller.SetArgs(kwargs).Call()
 
 	var errmsg string

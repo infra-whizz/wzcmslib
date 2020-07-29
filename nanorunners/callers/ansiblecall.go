@@ -29,6 +29,7 @@ func NewAnsibleLocalModuleCaller(modulename string) *AnsibleModule {
 	am.stateRoots = make([]string, 0)
 	am.name = strings.ToLower(strings.TrimPrefix(modulename, "ansible."))
 	am.args = map[string]interface{}{}
+	am.pyexe = []string{"/usr/bin/python3"}
 
 	return am
 }
@@ -37,6 +38,22 @@ func NewAnsibleLocalModuleCaller(modulename string) *AnsibleModule {
 // NOTE: if the same module is located in a various roots, then first win
 func (am *AnsibleModule) SetStateRoots(roots ...string) *AnsibleModule {
 	am.stateRoots = append(am.stateRoots, roots...)
+	return am
+}
+
+// SetPyInterpreter path, such as "/usr/bin/python3" or "/usr/bin/env python" etc
+func (am *AnsibleModule) SetPyInterpreter(pyexe string) *AnsibleModule {
+	if pyexe == "" {
+		// Skip, if empty shebang
+		return am
+	}
+
+	am.pyexe = []string{}
+	for _, cmd := range strings.Split(pyexe, " ") {
+		if cmd != "" {
+			am.pyexe = append(am.pyexe, cmd)
+		}
+	}
 	return am
 }
 
@@ -146,7 +163,8 @@ func (am *AnsibleModule) execModule() (string, string, error) {
 	if am.modType == BINARY {
 		sh = exec.Command(exePath, cfg.Name())
 	} else if am.modType == SCRIPT {
-		sh = exec.Command("python", exePath, cfg.Name())
+		cmd := append(am.pyexe, exePath, cfg.Name())
+		sh = exec.Command(cmd[0], cmd[1:]...)
 	} else {
 		return "", "", fmt.Errorf("Module %s was not found", am.name)
 	}
