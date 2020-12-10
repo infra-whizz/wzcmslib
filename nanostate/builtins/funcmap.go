@@ -21,5 +21,6 @@ func init() {
 		"traits":         traits,
 		"os_environ":     starlark.NewBuiltin("os_environ", Stk_OsEnviron),
 		"os_get_environ": starlark.NewBuiltin("os_get_environ", Stk_OsEnvironKey),
+		"os_root": starlark.NewBuiltin("os_root", Stk_OsEnvironRoot),
 	}
 }

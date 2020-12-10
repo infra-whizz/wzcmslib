@@ -49,6 +49,10 @@ func Stk_OsEnviron(thread *starlark.Thread, builtin *starlark.Builtin, args star
 }
 
 // Stk_OsEnvironKey searches for a specific key and returns a string value or None
+// Usage:
+//
+//   value = os_get_environ("FOO")
+//
 func Stk_OsEnvironKey(thread *starlark.Thread, builtin *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
 	switch len := args.Len(); {
 	case len > 1:
@@ -66,4 +70,12 @@ func Stk_OsEnvironKey(thread *starlark.Thread, builtin *starlark.Builtin, args s
 	default:
 		return starlark.None, nil
 	}
+}
+
+// Stk_OsEnvironRoot appends
+func Stk_OsEnvironRoot(thread *starlark.Thread, builtin *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+	//args.Index(0)
+	envArgs := starlark.Tuple
+	val, err := Stk_OsEnvironKey(thread, builtin, args, kwargs)
+	return starlark.None, nil
 }
