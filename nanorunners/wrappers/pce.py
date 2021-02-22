@@ -84,7 +84,11 @@ class ChrootCaller:
         They will stay opened across the chroot.
         """
         for mod in self.DEFAULT_MODULES:
-            importlib.import_module(mod)
+            try:
+                importlib.import_module(mod)
+            except ImportError as exc:
+                sys.stderr.write("Error: {}\n".format(exc))
+                sys.exit(1)
 
     def clone_pylib(self) -> None:
         """
