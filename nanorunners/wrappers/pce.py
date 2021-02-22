@@ -144,7 +144,6 @@ class ChrootCaller:
         if self.args.modules:
             self.dynmod_update_loadlist()
 
-        self.clone_pylib()
         self.dynmod_preload()
 
         sloc = os.path.dirname(self.args.cmd)
@@ -163,6 +162,9 @@ class ChrootCaller:
             for mod in self.dynlibs:
                 print(mod)
             sys.exit(1)
+
+        self.clone_pylib()
+
         return self
 
     def invoke(self) -> None:
