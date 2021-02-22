@@ -209,7 +209,7 @@ def main() -> None:
     ap.add_argument("-l", "--list-modules", action="store_true", help="List all available dynamically linked modules")
     args = ap.parse_args()
 
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 2 or not args.cmd:
         ap.print_usage()
         sys.exit(1)
     else:
