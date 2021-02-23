@@ -1,6 +1,8 @@
 test:
 	go test ./tests -check.v -test.v
 
+update: embed clean
+
 embed:
 ifeq (,$(wildcard ./wzbox))
 	go get -v github.com/infra-whizz/wzbox
