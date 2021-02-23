@@ -8,7 +8,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-yaml/yaml v2.1.0+incompatible
 	github.com/google/uuid v1.1.1
-	github.com/infra-whizz/wzbox v0.0.0-20210222175233-4f03adb07341 // indirect
+	github.com/infra-whizz/wzbox v0.0.0-20210223141646-d2405805b379 // indirect
 	github.com/infra-whizz/wzlib v0.0.0-20200622182529-c99727f3707a
 	github.com/karrick/godirwalk v1.15.6
 	github.com/kr/text v0.2.0 // indirect
