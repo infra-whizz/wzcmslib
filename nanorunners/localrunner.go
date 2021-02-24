@@ -56,7 +56,7 @@ func (lr *LocalRunner) callAnsibleModule(name string, kwargs map[string]interfac
 	}
 
 	response := map[string]RunnerStdResult{
-		name: RunnerStdResult{
+		name: {
 			Json:    ret,
 			Errmsg:  errmsg,
 			Errcode: errcode,
