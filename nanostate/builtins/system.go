@@ -75,7 +75,7 @@ func Stk_OsEnvironKey(thread *starlark.Thread, builtin *starlark.Builtin, args s
 // Stk_OsEnvironRoot appends
 func Stk_OsEnvironRoot(thread *starlark.Thread, builtin *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
 	//args.Index(0)
-	envArgs := starlark.Tuple
-	val, err := Stk_OsEnvironKey(thread, builtin, args, kwargs)
+	//envArgs := starlark.Tuple
+	//val, err := Stk_OsEnvironKey(thread, builtin, args, kwargs)
 	return starlark.None, nil
 }
