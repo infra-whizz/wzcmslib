@@ -18,7 +18,8 @@ type BaseRunner struct {
 	_response *RunnerResponse
 	_errcode  int
 
-	pyexe string // Python shebang for Ansible modules
+	pyexe      string // Python shebang for Ansible modules
+	chrootPath string
 	wzlib_logger.WzLogger
 }
 

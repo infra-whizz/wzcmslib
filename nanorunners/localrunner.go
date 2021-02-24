@@ -29,6 +29,12 @@ func (lr *LocalRunner) SetPyInterpreter(pyexe string) *LocalRunner {
 	return lr
 }
 
+// SetChrootPath to where explicitly chroot running modules
+func (lr *LocalRunner) SetChrootPath(root string) *LocalRunner {
+	lr.chrootPath = root
+	return lr
+}
+
 // Set state roots
 func (lr *LocalRunner) setStateRoots(roots ...string) {
 	lr.stateRoots = append(lr.stateRoots, roots...)
@@ -44,8 +50,11 @@ func (lr *LocalRunner) callShell(args interface{}) ([]RunnerHostResult, error) {
 }
 
 func (lr *LocalRunner) callAnsibleModule(name string, kwargs map[string]interface{}) ([]RunnerHostResult, error) {
+	lr.GetLogger().Debugf("Ansible modules are chrooted to '%s'", lr.chrootPath)
 	lr.GetLogger().Debugf("Calling external module '%s': %v", name, kwargs)
-	caller := nanocms_callers.NewAnsibleLocalModuleCaller(name).SetStateRoots(lr.stateRoots...).SetPyInterpreter(lr.pyexe)
+	caller := nanocms_callers.NewAnsibleLocalModuleCaller(name).
+		SetStateRoots(lr.stateRoots...).
+		SetPyInterpreter(lr.pyexe).SetChroot(lr.chrootPath)
 	ret, err := caller.SetArgs(kwargs).Call()
 
 	var errmsg string

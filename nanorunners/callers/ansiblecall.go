@@ -30,7 +30,19 @@ func NewAnsibleLocalModuleCaller(modulename string) *AnsibleModule {
 	am.name = strings.ToLower(strings.TrimPrefix(modulename, "ansible."))
 	am.args = map[string]interface{}{}
 	am.pyexe = []string{"/usr/bin/python3"}
+	am.chroot = "/"
 
+	return am
+}
+
+// SetChroot sets another root where an Ansible module should be ran.
+// Chrooted Ansible module is called via PCE (Python Chroot Executor) wrapper,
+// which is embedded inside the binary of this wzd via wzcmslib.
+// See wzcmslib/nanorunners/wrappers/pce.py for more details.
+//
+// Default "/". In this case PCE is not used.
+func (am *AnsibleModule) SetChroot(root string) *AnsibleModule {
+	am.chroot = root
 	return am
 }
 
@@ -39,6 +51,35 @@ func NewAnsibleLocalModuleCaller(modulename string) *AnsibleModule {
 func (am *AnsibleModule) SetStateRoots(roots ...string) *AnsibleModule {
 	am.stateRoots = append(am.stateRoots, roots...)
 	return am
+}
+
+// Prepare PCE
+func (am *AnsibleModule) preparePCE() error {
+	if am.chroot == "/" {
+		return nil
+	}
+
+	var err error
+	am.pce, err = ioutil.TempFile("/tmp", ".waka-pce-")
+
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(am.pce.Name(), NewWzPyPce().Get("./nanorunners/wrappers/pce.py"), 0644)
+}
+
+func (am *AnsibleModule) removePCE() error {
+	if am.pce == nil {
+		return nil
+	}
+
+	if err := os.Remove(am.pce.Name()); err != nil {
+		return err
+	}
+	am.pce.Close()
+	am.pce = nil
+	return nil
 }
 
 // SetPyInterpreter path, such as "/usr/bin/python3" or "/usr/bin/env python" etc
@@ -105,6 +146,11 @@ func (am *AnsibleModule) resolveModulePath() (string, error) {
 		}
 	}
 
+	if am.chroot != "/" {
+		modPath = modPath[len(am.chroot):]
+		am.GetLogger().Debugf("Ansible module path: %s", modPath)
+	}
+
 	return modPath, nil
 }
 
@@ -161,9 +207,27 @@ func (am *AnsibleModule) execModule() (string, string, error) {
 
 	var sh *exec.Cmd
 	if am.modType == BINARY {
+		// Todo: implement chrooted mode for binaries
 		sh = exec.Command(exePath, cfg.Name())
 	} else if am.modType == SCRIPT {
-		cmd := append(am.pyexe, exePath, cfg.Name())
+		if err := am.preparePCE(); err != nil {
+			return "", "", err
+		}
+
+		defer am.removePCE()
+
+		var cmd []string
+		if am.pce != nil {
+			cmd = append(am.pyexe, am.pce.Name(), "-r", am.chroot, "-c", exePath, "-j", cfg.Name()[len(am.chroot):])
+		} else {
+			cmd = append(am.pyexe, exePath, cfg.Name())
+		}
+
+		debugMessage := ""
+		if am.chroot != "/" {
+			debugMessage = fmt.Sprintf(" (inside: %s)", am.chroot)
+		}
+		am.GetLogger().Debugf("Calling Ansible module%s:\n'%s'", debugMessage, strings.Join(cmd, " "))
 		sh = exec.Command(cmd[0], cmd[1:]...)
 	} else {
 		return "", "", fmt.Errorf("Module %s was not found", am.name)
@@ -178,13 +242,19 @@ func (am *AnsibleModule) execModule() (string, string, error) {
 		am.GetLogger().Debugf("STDOUT:\n%s", stdout.String())
 		am.GetLogger().Debugf("STDERR:\n%s", stderr.String())
 	}
+	am.GetLogger().Debugf("STDOUT:\n%s", stdout.String())
+	am.GetLogger().Debugf("STDERR:\n%s", stderr.String())
 
 	return stdout.String(), stderr.String(), err
 }
 
 // Create a temporary config file and return a path to it.
 func (am *AnsibleModule) makeConfigFile() (*os.File, error) {
-	f, err := ioutil.TempFile("/tmp", "nst-ansible-")
+	var prefix string
+	if am.chroot != "/" {
+		prefix = am.chroot
+	}
+	f, err := ioutil.TempFile(prefix+"/tmp", "nst-ansible-")
 	if err != nil {
 		return nil, err
 	}
