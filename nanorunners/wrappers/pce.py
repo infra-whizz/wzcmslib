@@ -184,13 +184,11 @@ class ChrootCaller:
         """
         Run an Ansible module
         """
-        #_, _ = os.pipe() # r and w are just file descriptors
         pid = os.fork()
 
         uid, gid = os.getuid(), os.getgid()
 
         if not pid:
-            os.setgid(gid) # Set git/uid in exactly this order
             os.setuid(uid)
             os.chroot(self.args.root)
 
