@@ -108,7 +108,7 @@ func (am *AnsibleModule) resolveModulePath() (string, error) {
 	return modPath, nil
 }
 
-// SetKwargs sets the key/value arguments
+// SetArgs sets the key/value arguments
 func (am *AnsibleModule) SetArgs(kwargs map[string]interface{}) *AnsibleModule {
 	for k, v := range kwargs {
 		am.AddArg(k, v)
