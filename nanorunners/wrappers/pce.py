@@ -186,15 +186,12 @@ class ChrootCaller:
         """
         Run an Ansible module
         """
-        pid = os.fork()
-
-        uid, gid = os.getuid(), os.getgid()
-
-        if not pid:
-            os.setuid(uid)
+        if not os.fork():
+            os.setuid(os.getuid())
             os.chroot(self.args.root)
 
             self.invoke()
+
             sys.exit(0)
 
 
