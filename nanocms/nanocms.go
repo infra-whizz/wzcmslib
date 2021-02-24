@@ -8,17 +8,18 @@ package nanocms_backend
 
 import (
 	"fmt"
-	scp "github.com/bramvdbogaerde/go-scp"
-	"github.com/bramvdbogaerde/go-scp/auth"
-	"github.com/infra-whizz/wzcmslib/nanorunners"
-	"github.com/infra-whizz/wzcmslib/nanostate"
-	"github.com/infra-whizz/wzcmslib/nanostate/compiler"
-	"github.com/infra-whizz/wzcmslib/nanoutils"
-	"github.com/sirupsen/logrus"
-	"golang.org/x/crypto/ssh"
 	"os"
 	"os/user"
 	"path"
+
+	scp "github.com/bramvdbogaerde/go-scp"
+	"github.com/bramvdbogaerde/go-scp/auth"
+	nanocms_runners "github.com/infra-whizz/wzcmslib/nanorunners"
+	nanocms_state "github.com/infra-whizz/wzcmslib/nanostate"
+	nanocms_compiler "github.com/infra-whizz/wzcmslib/nanostate/compiler"
+	"github.com/infra-whizz/wzcmslib/nanoutils"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/crypto/ssh"
 )
 
 var logger *logrus.Logger
@@ -198,8 +199,12 @@ func (n *NanoCms) Bootstrap(fqdn string, stateid string, user string, password s
 		n.sshKeysDeployed = n.SshCopyId(fqdn, user, password)
 	}
 
-	nstfile := n.GetStateIndex().GetStateById(stateid).Path
-	logger.Debugf("Running NST file by Id '%s': %s", stateid, nstfile)
+	//nstfile := n.GetStateIndex().GetStateById(stateid).Path
+	stateMeta, err := n.GetStateIndex().GetStateById(stateid)
+	if err != nil {
+		logger.Errorf("Unable to find state by the id '%s': %s", stateid, err.Error())
+	}
+	logger.Debugf("Running NST file by Id '%s': %s", stateid, stateMeta.Path)
 
-	return n.RunStateSSH(n.LoadNstFile(nstfile), fqdn)
+	return n.RunStateSSH(n.LoadNstFile(stateMeta.Path), fqdn)
 }
