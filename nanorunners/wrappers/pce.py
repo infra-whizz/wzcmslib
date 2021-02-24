@@ -178,6 +178,8 @@ class ChrootCaller:
             sys.stderr.write("Error running module {}: {}\n".format(self.mod, err))
             sys.exit(1)
 
+        # Reset sys.argv so the AnsibleModule finds that JSON file and reads it
+        sys.argv = [sys.argv[0], self.args.json]
         getattr(sys.modules[self.mod], self.args.func)()
 
     def run(self) -> None:
@@ -202,6 +204,7 @@ def main() -> None:
     ap = argparse.ArgumentParser("pce", description="Python Chroot Executor - Python inside chroot without being preinstalled")
     ap.add_argument("-r", "--root", type=str, help="Root of the directory where to chroot")
     ap.add_argument("-c", "--cmd", type=str, help="Command line after the chroot")
+    ap.add_argument("-j", "--json", type=str, help="JSON args for Ansible modules, if not via STDIN")
     ap.add_argument("-f", "--func", type=str, help="Function name after import", default="main")
     ap.add_argument("-m", "--modules", type=str, help="Path to a text file for dynamically linked .so modules (one line per a name)")
     ap.add_argument("-l", "--list-modules", action="store_true", help="List all available dynamically linked modules")
