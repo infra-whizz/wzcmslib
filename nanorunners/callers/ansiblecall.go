@@ -66,7 +66,7 @@ func (am *AnsibleModule) preparePCE() error {
 		return err
 	}
 
-	return ioutil.WriteFile(am.pce.Name(), NewWzPyPce().Get("./nanorunners/wrappers/pce.py"), 0644)
+	return ioutil.WriteFile(am.pce.Name(), NewWzPyPce().Get("pce"), 0644)
 }
 
 func (am *AnsibleModule) removePCE() error {
