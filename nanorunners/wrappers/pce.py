@@ -152,14 +152,24 @@ class ChrootCaller:
         """
         Setup the environment
         """
+        # Prevent copying everything underneath current
+        cdir = os.path.dirname(os.path.abspath(__file__))
+        syspath = []
+        for p in sys.path:
+            if p != cdir:
+                syspath.append(p)
+        sys.path = syspath[:]
+        del syspath
+
+        # Load modules
         if self.args.modules:
             self.dynmod_update_loadlist()
-
         self.dynmod_preload()
 
         sloc = os.path.dirname(self.args.cmd)
         if sloc:
             sys.path.append(sloc)
+
         self.mod = os.path.basename(self.args.cmd).split(".")[0]
         if self.mod in sys.modules:
             sys.stderr.write("Error: module {} is clashing with already imported as {}\n"
