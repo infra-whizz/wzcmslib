@@ -89,6 +89,20 @@ class ChrootCaller:
                 sys.stderr.write("Error: {}\n".format(exc))
                 sys.exit(1)
 
+    @staticmethod
+    def ignore_data(directory, files):
+        """
+        Skip trash
+        """
+        fl = set()
+        for f in files:
+            if (f.split(".")[0] in ["LICENSE", "LICENSE", "PKG-INFO", "README"]
+                or "__pycache__" in f or "test_" in f
+                or "." in f and f.split(".")[-1] not in ["py", "so", "egg-info"]):
+                fl.add(f)
+
+        return fl
+
     def clone_pylib(self) -> None:
         """
         Copy all python libraries for temporary use
@@ -111,9 +125,7 @@ class ChrootCaller:
         # copy tree
         if not os.path.isdir(o_venv):
             for p in self.syspath:
-                #print("copying everything from {} to {}".format(p, o_venv + p))
-                # TODO: filter-out rubbish (cache, pyc, pyo, txt)
-                shutil.copytree(p, o_venv + p)
+                shutil.copytree(p, o_venv + p, ignore=self.ignore_data)
 
     def update_syspath(self):
         """
