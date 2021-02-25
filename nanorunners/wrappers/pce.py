@@ -81,7 +81,6 @@ class ChrootCaller:
     def dynmod_preload(self) -> None:
         """
         Preload dynamically linked modules.
-        They will stay opened across the chroot.
         """
         for mod in self.DEFAULT_MODULES:
             try:
@@ -197,6 +196,7 @@ class ChrootCaller:
 
 def main() -> None:
     """
+    Main function
     """
     ap = argparse.ArgumentParser("pce", description="Python Chroot Executor - Python inside chroot without being preinstalled")
     ap.add_argument("-r", "--root", type=str, help="Root of the directory where to chroot")
