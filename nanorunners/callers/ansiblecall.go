@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/karrick/godirwalk"
+	"github.com/thoas/go-funk"
 
 	wzlib_traits "github.com/infra-whizz/wzlib/traits"
 	wzlib_traits_attributes "github.com/infra-whizz/wzlib/traits/attributes"
@@ -146,10 +147,8 @@ func (am *AnsibleModule) resolveModulePath() (string, error) {
 		}
 	}
 
-	if am.chroot != "/" {
-		modPath = modPath[len(am.chroot):]
-		am.GetLogger().Debugf("Ansible module path: %s", modPath)
-	}
+	modPath = wzlib_utils.RemovePrefix(modPath, am.chroot)
+	am.GetLogger().Debugf("Ansible module path: %s", modPath)
 
 	return modPath, nil
 }
@@ -173,7 +172,7 @@ func (am *AnsibleModule) Call() (map[string]interface{}, error) {
 	var ret map[string]interface{}
 	stdout, stderr, err := am.execModule()
 	if stderr != "" {
-		am.GetLogger().Errorf("Call error:\n%s", stderr)
+		am.GetLogger().Errorf("Ansible call error:\n'%s'", stderr)
 	}
 	if err != nil && stdout == "" && stderr == "" {
 		return nil, err
@@ -187,6 +186,11 @@ func (am *AnsibleModule) Call() (map[string]interface{}, error) {
 	return ret, nil
 }
 
+// Execute module.
+// There are certain rules how that works:
+//   - if everything is chrooted, everything runs chrooted.
+//   - but if "root" is specified, module is NOT ran as chrooted, but parameter just passed to the module
+//   - If everything is chrooted and "root" specified, its value is overwritten with the current chroot
 func (am *AnsibleModule) execModule() (string, string, error) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -204,12 +208,49 @@ func (am *AnsibleModule) execModule() (string, string, error) {
 	}
 
 	defer os.Remove(cfg.Name())
+	var chrootExit func() error
 
-	var sh *exec.Cmd
 	if am.modType == BINARY {
-		// Todo: implement chrooted mode for binaries
-		sh = exec.Command(exePath, cfg.Name())
+		// should we run module chrooted?
+		var cnt bool
+		if am.chroot != "/" {
+			cnt = !funk.Contains(am.args, "root")
+		} else {
+			cnt = false
+		}
+
+		if cnt {
+			// Run chrooted
+			conf := new(wzlib_utils.WzContainerParam)
+			conf.Root = am.chroot
+			conf.Command = exePath
+			conf.Args = []string{wzlib_utils.RemovePrefix(cfg.Name(), am.chroot)}
+
+			return wzlib_utils.NewWzContainer(conf).Run()
+		} else {
+			// Run directly
+			sh := exec.Command(path.Join(am.chroot, exePath), cfg.Name())
+
+			// TODO: Move to a function (this is a code repeat!)
+			sh.Stdout = &stdout
+			sh.Stderr = &stderr
+
+			err = sh.Run()
+
+			if err != nil {
+				am.GetLogger().Errorf("Module '%s' failed: %s", exePath, err.Error())
+			}
+
+			if chrootExit != nil {
+				err = chrootExit()
+			}
+
+			return stdout.String(), stderr.String(), err
+		}
+
+		// TODO: Split to two methods!
 	} else if am.modType == SCRIPT {
+		// Python module
 		if err := am.preparePCE(); err != nil {
 			return "", "", err
 		}
@@ -218,7 +259,8 @@ func (am *AnsibleModule) execModule() (string, string, error) {
 
 		var cmd []string
 		if am.pce != nil {
-			cmd = append(am.pyexe, am.pce.Name(), "-r", am.chroot, "-c", exePath, "-j", cfg.Name()[len(am.chroot):])
+			cmd = append(am.pyexe, am.pce.Name(), "-r", am.chroot, "-c", exePath,
+				"-j", wzlib_utils.RemovePrefix(cfg.Name(), am.chroot))
 		} else {
 			cmd = append(am.pyexe, exePath, cfg.Name())
 		}
@@ -228,24 +270,24 @@ func (am *AnsibleModule) execModule() (string, string, error) {
 			debugMessage = fmt.Sprintf(" (inside: %s)", am.chroot)
 		}
 		am.GetLogger().Debugf("Calling Ansible module%s:\n'%s'", debugMessage, strings.Join(cmd, " "))
-		sh = exec.Command(cmd[0], cmd[1:]...)
-	} else {
-		return "", "", fmt.Errorf("Module %s was not found", am.name)
+		sh := exec.Command(cmd[0], cmd[1:]...)
+		sh.Stdout = &stdout
+		sh.Stderr = &stderr
+
+		err = sh.Run()
+
+		if err != nil {
+			am.GetLogger().Errorf("Module '%s' failed: %s", exePath, err.Error())
+		}
+
+		if chrootExit != nil {
+			err = chrootExit()
+		}
+
+		return stdout.String(), stderr.String(), err
 	}
-	sh.Stdout = &stdout
-	sh.Stderr = &stderr
 
-	err = sh.Run()
-
-	if err != nil {
-		am.GetLogger().Errorf("Module '%s' failed: %s", exePath, err.Error())
-		am.GetLogger().Debugf("STDOUT:\n%s", stdout.String())
-		am.GetLogger().Debugf("STDERR:\n%s", stderr.String())
-	}
-	am.GetLogger().Debugf("STDOUT:\n%s", stdout.String())
-	am.GetLogger().Debugf("STDERR:\n%s", stderr.String())
-
-	return stdout.String(), stderr.String(), err
+	return "", "", fmt.Errorf("Module %s was not found", am.name)
 }
 
 // Create a temporary config file and return a path to it.
@@ -253,6 +295,9 @@ func (am *AnsibleModule) makeConfigFile() (*os.File, error) {
 	var prefix string
 	if am.chroot != "/" {
 		prefix = am.chroot
+		if funk.Contains(am.args, "root") {
+			am.args["root"] = am.chroot // asking for root
+		}
 	}
 	f, err := ioutil.TempFile(prefix+"/tmp", "nst-ansible-")
 	if err != nil {
