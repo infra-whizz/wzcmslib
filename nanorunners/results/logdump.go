@@ -148,7 +148,7 @@ func (rtl *ResultsToLog) ToLog() []*ResultLogEntry {
 							messages = append(messages, &ResultLogEntry{
 								Level: logrus.DebugLevel,
 								Message: fmt.Sprintf("%s introspected direct output:\n%s",
-									moduleId, spew.Sdump(moduleCallResult.Json["msg"])),
+									moduleId, spew.Sdump(moduleCallResult.Json)),
 							})
 						}
 					}

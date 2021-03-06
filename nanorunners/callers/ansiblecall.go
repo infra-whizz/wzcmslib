@@ -172,7 +172,7 @@ func (am *AnsibleModule) Call() (map[string]interface{}, error) {
 	var ret map[string]interface{}
 	stdout, stderr, err := am.execModule()
 	if stderr != "" {
-		am.GetLogger().Errorf("Call error:\n%s", stderr)
+		am.GetLogger().Errorf("Ansible call error:\n'%s'", stderr)
 	}
 	if err != nil && stdout == "" && stderr == "" {
 		return nil, err
@@ -239,11 +239,7 @@ func (am *AnsibleModule) execModule() (string, string, error) {
 
 			if err != nil {
 				am.GetLogger().Errorf("Module '%s' failed: %s", exePath, err.Error())
-				am.GetLogger().Debugf("STDOUT:\n%s", stdout.String())
-				am.GetLogger().Debugf("STDERR:\n%s", stderr.String())
 			}
-			am.GetLogger().Debugf("STDOUT:\n%s", stdout.String())
-			am.GetLogger().Debugf("STDERR:\n%s", stderr.String())
 
 			if chrootExit != nil {
 				err = chrootExit()
@@ -282,11 +278,7 @@ func (am *AnsibleModule) execModule() (string, string, error) {
 
 		if err != nil {
 			am.GetLogger().Errorf("Module '%s' failed: %s", exePath, err.Error())
-			am.GetLogger().Debugf("STDOUT:\n%s", stdout.String())
-			am.GetLogger().Debugf("STDERR:\n%s", stderr.String())
 		}
-		am.GetLogger().Debugf("STDOUT:\n%s", stdout.String())
-		am.GetLogger().Debugf("STDERR:\n%s", stderr.String())
 
 		if chrootExit != nil {
 			err = chrootExit()

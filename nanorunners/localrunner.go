@@ -50,7 +50,7 @@ func (lr *LocalRunner) callShell(args interface{}) ([]RunnerHostResult, error) {
 }
 
 func (lr *LocalRunner) callAnsibleModule(name string, kwargs map[string]interface{}) ([]RunnerHostResult, error) {
-	lr.GetLogger().Debugf("Ansible modules are chrooted to '%s'", lr.chrootPath)
+	lr.GetLogger().Debugf("Module operation context: '%s'", lr.chrootPath)
 	lr.GetLogger().Debugf("Calling external module '%s': %v", name, kwargs)
 	caller := nanocms_callers.NewAnsibleLocalModuleCaller(name).
 		SetStateRoots(lr.stateRoots...).
