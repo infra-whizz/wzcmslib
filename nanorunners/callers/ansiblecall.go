@@ -111,6 +111,9 @@ func (am *AnsibleModule) resolvePlatformPath() string {
 	return fmt.Sprintf("%s/%s", sysName, traits.Get("arch"))
 }
 
+// TODO: Should be rewritten according to the exact collection layout, used in Ansible 2.10
+//
+
 // Resolve module path in 2.10+ collections style
 func (am *AnsibleModule) resolveModulePath() (string, error) {
 	modPath := ""
