@@ -41,6 +41,7 @@ type AnsibleCollectionResolver struct {
 	collPaths   []string
 	osname      string
 	arch        string
+	plp         string
 
 	wzlib_logger.WzLogger
 }
@@ -71,6 +72,12 @@ func NewAnsibleCollectionResolver(paths ...string) *AnsibleCollectionResolver {
 	acr.osname = osname.(string)
 	acr.arch = arch.(string)
 
+	var err error
+	acr.plp, err = nanoutils.NewPythonEnvironment().GetPureLibPath()
+	if err != nil {
+		acr.GetLogger().Error(err)
+	}
+
 	return acr
 }
 
@@ -86,32 +93,46 @@ func (acr *AnsibleCollectionResolver) SetArch(arch string) *AnsibleCollectionRes
 	return acr
 }
 
+// ResolveModuleByURI of the Ansible: collection or core plugin.
+func (acr AnsibleCollectionResolver) ResolveModuleByURI(module string) (string, error) {
+	moduleNamespace := strings.Split(module, ".")
+
+	if len(moduleNamespace) > 4 || len(moduleNamespace) < 3 {
+		return "", fmt.Errorf("Unknown module URI. Should be as 'ansible.namespace.plugin' for core plugin and 'ansible.collection.namespace.plugin' for collection plugin")
+	}
+	if moduleNamespace[0] != "ansible" {
+		return "", fmt.Errorf("Unknown module URI: should start from 'ansible'")
+	}
+
+	if len(moduleNamespace) == 3 {
+		return acr.ResolveCorePlugin(moduleNamespace[1], moduleNamespace[2])
+	} else {
+		return acr.ResolveCollectionPlugin(moduleNamespace[1], moduleNamespace[2], moduleNamespace[3])
+	}
+}
+
 // ResolveCorePlugin of the Ansible, that is not a part of any collection
-// but is shipped together with the Ansible distribution.
-func (acr *AnsibleCollectionResolver) ResolveCorePlugin(module string) (string, error) {
-	return "", nil
+// but is shipped together with the Ansible distribution. Core modules are only in Python.
+// URL: "ansible.namespace.plugin", e.g.: 'ansible.system.ping'
+func (acr *AnsibleCollectionResolver) ResolveCorePlugin(namespace, plugin string) (string, error) {
+	pyModPath := path.Join(acr.plp, "ansible", "modules", namespace, fmt.Sprintf("%s.py", plugin))
+	if _, err := os.Stat(pyModPath); err == nil {
+		return pyModPath, nil
+	} else {
+		return "", err
+	}
 }
 
 // ResolveCollectionPlugin returns a plugin by the given paths that is formatted as a collection.
 // If no paths given, they are resolved to the current Python
 // installation where "ansible_collection" is located.
 // If plugin is binary (i.e. "library" directory is present and pattern matches there) then the matched binary returned directly.
-func (acr *AnsibleCollectionResolver) ResolveCollectionPlugin(module string) (string, error) {
-	moduleNamespace := strings.Split(module, ".")
-	if len(moduleNamespace) != 3 {
-		return "", fmt.Errorf("Module is expected to be in the collection, therefore format should be specified as 'collection.namespace.module' instead")
-	}
-
-	pyenv := nanoutils.NewPythonEnvironment()
-	plp, err := pyenv.GetPureLibPath()
-	if err != nil {
-		return "", err
-	}
-
-	pluginRoot := path.Join(plp, "ansible_collections", moduleNamespace[0], moduleNamespace[1])
-	binModPath := path.Join(pluginRoot, "library", fmt.Sprintf("%s-%s-%s", moduleNamespace[2], acr.osname, acr.arch))
-	binModWrapper := path.Join(pluginRoot, "plugins", "action", fmt.Sprintf("%s.py", moduleNamespace[2]))
-	pyModPath := path.Join(pluginRoot, "plugins", "modules", fmt.Sprintf("%s.py", moduleNamespace[2]))
+// URI: "ansible.collection.namespace.plugin", e.g.: 'ansible.whizz.embedded.zypper'.
+func (acr *AnsibleCollectionResolver) ResolveCollectionPlugin(collection, namespace, plugin string) (string, error) {
+	pluginRoot := path.Join(acr.plp, "ansible_collections", collection, namespace)
+	binModPath := path.Join(pluginRoot, "library", fmt.Sprintf("%s-%s-%s", plugin, acr.osname, acr.arch))
+	binModWrapper := path.Join(pluginRoot, "plugins", "action", fmt.Sprintf("%s.py", plugin))
+	pyModPath := path.Join(pluginRoot, "plugins", "modules", fmt.Sprintf("%s.py", plugin))
 
 	if _, err := os.Stat(binModPath); err == nil {
 		if _, err := os.Stat(binModWrapper); err == nil {
@@ -119,7 +140,7 @@ func (acr *AnsibleCollectionResolver) ResolveCollectionPlugin(module string) (st
 			return binModPath, nil
 		} else if os.IsNotExist(err) {
 			// is not compliant
-			return "", fmt.Errorf("Module %s seems binary, but the collection is not compliant.", module)
+			return "", fmt.Errorf("Module %s.%s.%s seems binary, but the collection is not compliant.", collection, namespace, plugin)
 		}
 	} else if os.IsNotExist(err) {
 		// Is not binary
