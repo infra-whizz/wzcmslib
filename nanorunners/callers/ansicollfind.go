@@ -104,17 +104,18 @@ func (acr AnsibleCollectionResolver) ResolveModuleByURI(module string) (string, 
 		return "", fmt.Errorf("Unknown module URI: should start from 'ansible'")
 	}
 
+	// Todo: iterate over collPaths. Include acr.plp in the collPaths by default as first iteration
 	if len(moduleNamespace) == 3 {
-		return acr.ResolveCorePlugin(moduleNamespace[1], moduleNamespace[2])
+		return acr.resolveCorePlugin(moduleNamespace[1], moduleNamespace[2])
 	} else {
-		return acr.ResolveCollectionPlugin(moduleNamespace[1], moduleNamespace[2], moduleNamespace[3])
+		return acr.resolveCollectionPlugin(moduleNamespace[1], moduleNamespace[2], moduleNamespace[3])
 	}
 }
 
 // ResolveCorePlugin of the Ansible, that is not a part of any collection
 // but is shipped together with the Ansible distribution. Core modules are only in Python.
 // URL: "ansible.namespace.plugin", e.g.: 'ansible.system.ping'
-func (acr *AnsibleCollectionResolver) ResolveCorePlugin(namespace, plugin string) (string, error) {
+func (acr *AnsibleCollectionResolver) resolveCorePlugin(namespace, plugin string) (string, error) {
 	pyModPath := path.Join(acr.plp, "ansible", "modules", namespace, fmt.Sprintf("%s.py", plugin))
 	if _, err := os.Stat(pyModPath); err == nil {
 		return pyModPath, nil
@@ -128,7 +129,7 @@ func (acr *AnsibleCollectionResolver) ResolveCorePlugin(namespace, plugin string
 // installation where "ansible_collection" is located.
 // If plugin is binary (i.e. "library" directory is present and pattern matches there) then the matched binary returned directly.
 // URI: "ansible.collection.namespace.plugin", e.g.: 'ansible.whizz.embedded.zypper'.
-func (acr *AnsibleCollectionResolver) ResolveCollectionPlugin(collection, namespace, plugin string) (string, error) {
+func (acr *AnsibleCollectionResolver) resolveCollectionPlugin(collection, namespace, plugin string) (string, error) {
 	pluginRoot := path.Join(acr.plp, "ansible_collections", collection, namespace)
 	binModPath := path.Join(pluginRoot, "library", fmt.Sprintf("%s-%s-%s", plugin, acr.osname, acr.arch))
 	binModWrapper := path.Join(pluginRoot, "plugins", "action", fmt.Sprintf("%s.py", plugin))
