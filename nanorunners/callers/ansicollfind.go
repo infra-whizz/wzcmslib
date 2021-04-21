@@ -1,5 +1,17 @@
 package nanocms_callers
 
+import (
+	"fmt"
+	"os"
+	"path"
+	"strings"
+
+	"github.com/infra-whizz/wzcmslib/nanoutils"
+	wzlib_logger "github.com/infra-whizz/wzlib/logger"
+	wzlib_traits "github.com/infra-whizz/wzlib/traits"
+	wzlib_traits_attributes "github.com/infra-whizz/wzlib/traits/attributes"
+)
+
 // AnsibleCollection is a collection map for Ansible
 // Binary mode supported only via proxy plugins and pre-compiled binaries
 type AnsibleCollection struct {
@@ -29,6 +41,8 @@ type AnsibleCollectionResolver struct {
 	collPaths   []string
 	osname      string
 	arch        string
+
+	wzlib_logger.WzLogger
 }
 
 // NewAnsibleCollectionResolver returns an instance of the resolver
@@ -39,37 +53,85 @@ func NewAnsibleCollectionResolver(paths ...string) *AnsibleCollectionResolver {
 	acr.collections = make([]AnsibleCollection, 0)
 	acr.collPaths = paths
 
-	// XXX: Resolve current os/arch instead of hard-coding this
-	acr.osname = "linux"
-	acr.arch = "x86_64"
+	traits := wzlib_traits.NewWzTraitsContainer()
+	wzlib_traits_attributes.NewSysInfo().Load(traits)
+
+	osname := traits.Get("os.sysname")
+	if osname == nil {
+		acr.GetLogger().Error("Unable to obtain details about this platform")
+		return acr
+	}
+
+	arch := traits.Get("arch")
+	if arch == nil {
+		acr.GetLogger().Error("Unable to obtain architecture of this platform")
+		return acr
+	}
+
+	acr.osname = osname.(string)
+	acr.arch = arch.(string)
+
 	return acr
 }
 
 // SetOsName (equivalent to GOOS variable)
 func (acr *AnsibleCollectionResolver) SetOsName(osname string) *AnsibleCollectionResolver {
-	acr.osname = osname
+	acr.osname = strings.ToLower(osname)
 	return acr
 }
 
 // SetArch (equivalent to GOARCH variable)
 func (acr *AnsibleCollectionResolver) SetArch(arch string) *AnsibleCollectionResolver {
-	acr.arch = arch
+	acr.arch = strings.ToLower(arch)
 	return acr
 }
 
-// Resolve a plugin by the given paths.
+// ResolveCorePlugin of the Ansible, that is not a part of any collection
+// but is shipped together with the Ansible distribution.
+func (acr *AnsibleCollectionResolver) ResolveCorePlugin(module string) (string, error) {
+	return "", nil
+}
+
+// ResolveCollectionPlugin returns a plugin by the given paths that is formatted as a collection.
 // If no paths given, they are resolved to the current Python
 // installation where "ansible_collection" is located.
-func (acr *AnsibleCollectionResolver) ResolvePlugin(module string) string {
-	// Idea of resolving to do it fast:
-	// - Do not preload everything every time
-	// - Resolve only the precise module in searchable paths
-	// - Module name e.g. "whizz.embedded.zypper" which resolves to a standard collection,
-	//   so the resolver needs to look exactly in:
-	//   - $PYTHON_SITE_PATH/ansible_collections/whizz/embedded/plugins/action/zypper.py
-	//   - $PYTHON_SITE_PATH/ansible_collections/whizz/embedded/plugins/library/zypper_<target os>_<target arch>
-	// - Pick the binary with already known target OS and arch
-	// - Execute as further
+// If plugin is binary (i.e. "library" directory is present and pattern matches there) then the matched binary returned directly.
+func (acr *AnsibleCollectionResolver) ResolveCollectionPlugin(module string) (string, error) {
+	moduleNamespace := strings.Split(module, ".")
+	if len(moduleNamespace) != 3 {
+		return "", fmt.Errorf("Module is expected to be in the collection, therefore format should be specified as 'collection.namespace.module' instead")
+	}
 
-	return ""
+	pyenv := nanoutils.NewPythonEnvironment()
+	plp, err := pyenv.GetPureLibPath()
+	if err != nil {
+		return "", err
+	}
+
+	pluginRoot := path.Join(plp, "ansible_collections", moduleNamespace[0], moduleNamespace[1])
+	binModPath := path.Join(pluginRoot, "library", fmt.Sprintf("%s-%s-%s", moduleNamespace[2], acr.osname, acr.arch))
+	binModWrapper := path.Join(pluginRoot, "plugins", "action", fmt.Sprintf("%s.py", moduleNamespace[2]))
+	pyModPath := path.Join(pluginRoot, "plugins", "modules", fmt.Sprintf("%s.py", moduleNamespace[2]))
+
+	if _, err := os.Stat(binModPath); err == nil {
+		if _, err := os.Stat(binModWrapper); err == nil {
+			// is binary and compliant
+			return binModPath, nil
+		} else if os.IsNotExist(err) {
+			// is not compliant
+			return "", fmt.Errorf("Module %s seems binary, but the collection is not compliant.", module)
+		}
+	} else if os.IsNotExist(err) {
+		// Is not binary
+		if _, err := os.Stat(pyModPath); err == nil {
+			// is Python and compliant
+			return pyModPath, nil
+		} else if os.IsNotExist(err) {
+			return "", err
+		}
+	} else {
+		return "", err
+	}
+
+	return "", nil
 }
