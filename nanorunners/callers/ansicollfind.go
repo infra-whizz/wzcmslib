@@ -12,6 +12,14 @@ import (
 	wzlib_traits_attributes "github.com/infra-whizz/wzlib/traits/attributes"
 )
 
+type OSArch struct {
+	definition string
+}
+
+var ARM32 *OSArch = &OSArch{definition: "arm"}
+var ARM64 *OSArch = &OSArch{definition: "arm64"}
+var INTEL64 *OSArch = &OSArch{definition: "x86_64"}
+
 // AnsibleCollection is a collection map for Ansible
 // Binary mode supported only via proxy plugins and pre-compiled binaries
 type AnsibleCollection struct {
@@ -88,8 +96,8 @@ func (acr *AnsibleCollectionResolver) SetOsName(osname string) *AnsibleCollectio
 }
 
 // SetArch (equivalent to GOARCH variable)
-func (acr *AnsibleCollectionResolver) SetArch(arch string) *AnsibleCollectionResolver {
-	acr.arch = strings.ToLower(arch)
+func (acr *AnsibleCollectionResolver) SetArch(arch *OSArch) *AnsibleCollectionResolver {
+	acr.arch = arch.definition
 	return acr
 }
 
