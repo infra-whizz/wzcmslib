@@ -19,6 +19,7 @@ type AnsibleModule struct {
 	pyexe      []string // Interpreter shebang, e.g. "/usr/bin/python3" or "/usr/bin/env python" etc.
 	chroot     string   // Run ansible chrooted, if it is different than "/"
 	pce        *os.File
+	pceModule  *os.File
 
 	wzlib_logger.WzLogger
 }

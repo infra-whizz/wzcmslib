@@ -13,14 +13,10 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"strings"
 
-	"github.com/karrick/godirwalk"
 	"github.com/thoas/go-funk"
 
-	wzlib_traits "github.com/infra-whizz/wzlib/traits"
-	wzlib_traits_attributes "github.com/infra-whizz/wzlib/traits/attributes"
 	wzlib_utils "github.com/infra-whizz/wzlib/utils"
 )
 
@@ -28,7 +24,7 @@ func NewAnsibleLocalModuleCaller(modulename string) *AnsibleModule {
 	am := new(AnsibleModule)
 	am.modType = 0
 	am.stateRoots = make([]string, 0)
-	am.name = strings.ToLower(strings.TrimPrefix(modulename, "ansible."))
+	am.name = modulename
 	am.args = map[string]interface{}{}
 	am.pyexe = []string{"/usr/bin/python3"}
 	am.chroot = "/"
@@ -72,7 +68,7 @@ func (am *AnsibleModule) preparePCE() error {
 
 func (am *AnsibleModule) removePCE() error {
 	if am.pce == nil {
-		return nil
+		return fmt.Errorf("And attempt to remove PCE wrapper that was not previously prepared or already removed")
 	}
 
 	if err := os.Remove(am.pce.Name()); err != nil {
@@ -80,6 +76,47 @@ func (am *AnsibleModule) removePCE() error {
 	}
 	am.pce.Close()
 	am.pce = nil
+	return nil
+}
+
+// PCE module is a regular Ansible module, written in plain Python and is not using binary JSON interface.
+// Such module is a self-standing application, which essentially has own __main__ and can be just run directly.
+// However, many modules in Ansible are written in a bad way, clashing namespace with the other standard Python
+// modules, e.g. there is Ansible module "tempfile", which is clashing with the standard "tempfile" and results
+// to an error.
+//
+// Preparing PCE module is copied from the *original* location. PCE wrapper then will also copy the entire Python
+// environment into chrooted environment.
+func (am *AnsibleModule) preparePCEModule(src string) error {
+	var err error
+	var content []byte
+
+	if am.pceModule, err = ioutil.TempFile("/tmp", ".waka-pcemod-"); err != nil {
+		return err
+	}
+
+	if content, err = ioutil.ReadFile(src); err != nil {
+		return err
+	}
+
+	if _, err = am.pceModule.Write(content); err != nil {
+		return err
+	}
+
+	return am.pceModule.Close()
+}
+
+// Removes a copy of PCE module
+func (am *AnsibleModule) removePCEModule() error {
+	if am.pceModule == nil {
+		return fmt.Errorf("And attempt to remove PCE Module that was not previously prepared or already removed")
+	}
+	if err := os.Remove(am.pceModule.Name()); err != nil {
+		return err
+	}
+	am.pceModule.Close()
+	am.pceModule = nil
+
 	return nil
 }
 
@@ -97,63 +134,6 @@ func (am *AnsibleModule) SetPyInterpreter(pyexe string) *AnsibleModule {
 		}
 	}
 	return am
-}
-
-func (am *AnsibleModule) resolvePlatformPath() string {
-	traits := wzlib_traits.NewWzTraitsContainer()
-	wzlib_traits_attributes.NewSysInfo().Load(traits)
-
-	sysName := traits.Get("os.sysname")
-	if sysName == nil {
-		return fmt.Sprintf("generic/%s", traits.Get("arch"))
-	}
-
-	return fmt.Sprintf("%s/%s", sysName, traits.Get("arch"))
-}
-
-// TODO: Should be rewritten according to the exact collection layout, used in Ansible 2.10
-//
-
-// Resolve module path in 2.10+ collections style
-func (am *AnsibleModule) resolveModulePath() (string, error) {
-	modPath := ""
-	platformPath := am.resolvePlatformPath()
-	for _, stateRoot := range am.stateRoots {
-		moduleRoot := filepath.Clean(path.Join(stateRoot, "modules"))
-		suffBinPath := filepath.Clean(path.Join(moduleRoot, "bin", platformPath, strings.ReplaceAll(am.name, ".", "/")))
-		suffPyPath := filepath.Clean(path.Join(moduleRoot, strings.ReplaceAll(am.name, ".", "/")+".py"))
-
-		if err := godirwalk.Walk(moduleRoot, &godirwalk.Options{
-			Unsorted:            true,
-			FollowSymbolicLinks: true,
-			Callback: func(pth string, info *godirwalk.Dirent) error {
-				contentType, _ := wzlib_utils.FileContentTypeByPath(pth)
-				switch contentType {
-				case "application/octet-stream":
-					if strings.HasSuffix(pth, suffBinPath) {
-						modPath = pth
-						am.modType = BINARY
-						return fmt.Errorf("Binary module found")
-					}
-				case "text/plain":
-					if strings.HasSuffix(pth, suffPyPath) {
-						modPath = pth
-						am.modType = SCRIPT
-						return fmt.Errorf("Python module found")
-					}
-				}
-				return nil
-			},
-			ErrorCallback: func(pth string, err error) godirwalk.ErrorAction { return godirwalk.SkipNode },
-		}); err != nil {
-			break
-		}
-	}
-
-	modPath = wzlib_utils.RemovePrefix(modPath, am.chroot)
-	am.GetLogger().Debugf("Ansible module path: %s", modPath)
-
-	return modPath, nil
 }
 
 // SetArgs sets the key/value arguments
@@ -189,6 +169,24 @@ func (am *AnsibleModule) Call() (map[string]interface{}, error) {
 	return ret, nil
 }
 
+func (am *AnsibleModule) ResolveModule() (string, error) {
+	// Resolve module and set its type. Based on this, config file is made then
+	resolver := NewAnsibleCollectionResolver()
+	exePath, err := resolver.ResolveModuleByURI(am.name)
+	//exePath = wzlib_utils.RemovePrefix(exePath, am.chroot)
+	am.GetLogger().Debugf("Ansible module path: %s", exePath)
+	if err != nil {
+		return "", err
+	}
+	if resolver.IsBinary() {
+		am.modType = BINARY
+	} else {
+		am.modType = SCRIPT
+	}
+	exePath = path.Join("/tmp/.waka/.venv", exePath) // XXXXX
+	return exePath, nil
+}
+
 // Execute module.
 // There are certain rules how that works:
 //   - if everything is chrooted, everything runs chrooted.
@@ -198,8 +196,7 @@ func (am *AnsibleModule) execModule() (string, string, error) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	// Resolve module and set its type. Based on this, config file is made then
-	exePath, err := am.resolveModulePath()
+	exePath, err := am.ResolveModule()
 	if err != nil {
 		return "", "", err
 	}
@@ -258,7 +255,12 @@ func (am *AnsibleModule) execModule() (string, string, error) {
 			return "", "", err
 		}
 
+		if err := am.preparePCEModule(wzlib_utils.RemovePrefix(exePath, "/tmp/.waka/.venv")); err != nil {
+			return "", "", err
+		}
+
 		defer am.removePCE()
+		defer am.removePCEModule()
 
 		var cmd []string
 		if am.pce != nil {
