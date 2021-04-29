@@ -28,6 +28,7 @@ func NewAnsibleLocalModuleCaller(modulename string) *AnsibleModule {
 	am.args = map[string]interface{}{}
 	am.pyexe = []string{"/usr/bin/python3"}
 	am.chroot = "/"
+	am.tempChrootedPrefix = "/tmp/.waka/.venv"
 
 	return am
 }
@@ -91,7 +92,12 @@ func (am *AnsibleModule) preparePCEModule(src string) error {
 	var err error
 	var content []byte
 
-	if am.pceModule, err = ioutil.TempFile("/tmp", ".waka-pcemod-"); err != nil {
+	pref, err := wzlib_utils.RandomString(0xa, false)
+	if err != nil {
+		return err
+	}
+
+	if am.pceModule, err = os.Create(fmt.Sprintf("%s/tmp/.waka/whizz%s_%s", am.chroot, pref, path.Base(src))); err != nil {
 		return err
 	}
 
@@ -173,17 +179,22 @@ func (am *AnsibleModule) ResolveModule() (string, error) {
 	// Resolve module and set its type. Based on this, config file is made then
 	resolver := NewAnsibleCollectionResolver()
 	exePath, err := resolver.ResolveModuleByURI(am.name)
-	//exePath = wzlib_utils.RemovePrefix(exePath, am.chroot)
 	am.GetLogger().Debugf("Ansible module path: %s", exePath)
+
 	if err != nil {
 		return "", err
 	}
+
 	if resolver.IsBinary() {
 		am.modType = BINARY
 	} else {
 		am.modType = SCRIPT
 	}
-	exePath = path.Join("/tmp/.waka/.venv", exePath) // XXXXX
+
+	if am.chroot != "/" {
+		exePath = path.Join(am.tempChrootedPrefix, exePath)
+	}
+
 	return exePath, nil
 }
 
@@ -255,7 +266,7 @@ func (am *AnsibleModule) execModule() (string, string, error) {
 			return "", "", err
 		}
 
-		if err := am.preparePCEModule(wzlib_utils.RemovePrefix(exePath, "/tmp/.waka/.venv")); err != nil {
+		if err := am.preparePCEModule(wzlib_utils.RemovePrefix(exePath, am.tempChrootedPrefix)); err != nil {
 			return "", "", err
 		}
 
@@ -264,7 +275,7 @@ func (am *AnsibleModule) execModule() (string, string, error) {
 
 		var cmd []string
 		if am.pce != nil {
-			cmd = append(am.pyexe, am.pce.Name(), "-r", am.chroot, "-c", exePath,
+			cmd = append(am.pyexe, am.pce.Name(), "-r", am.chroot, "-c", am.pceModule.Name(),
 				"-j", wzlib_utils.RemovePrefix(cfg.Name(), am.chroot))
 		} else {
 			cmd = append(am.pyexe, exePath, cfg.Name())
@@ -301,7 +312,7 @@ func (am *AnsibleModule) makeConfigFile() (*os.File, error) {
 	if am.chroot != "/" {
 		prefix = am.chroot
 		if funk.Contains(am.args, "root") {
-			am.args["root"] = am.chroot // asking for root
+			am.args["root"] = am.chroot // a module is asking for root, as it will chroot on its own, this time nested
 		}
 	}
 	f, err := ioutil.TempFile(prefix+"/tmp", "nst-ansible-")
