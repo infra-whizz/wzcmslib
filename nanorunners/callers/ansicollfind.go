@@ -50,6 +50,7 @@ type AnsibleCollectionResolver struct {
 	osname      string
 	arch        string
 	plp         string
+	isbinary    bool
 
 	wzlib_logger.WzLogger
 }
@@ -61,6 +62,7 @@ func NewAnsibleCollectionResolver(paths ...string) *AnsibleCollectionResolver {
 	acr := new(AnsibleCollectionResolver)
 	acr.collections = make([]AnsibleCollection, 0)
 	acr.collPaths = paths
+	acr.isbinary = false
 
 	traits := wzlib_traits.NewWzTraitsContainer()
 	wzlib_traits_attributes.NewSysInfo().Load(traits)
@@ -101,8 +103,13 @@ func (acr *AnsibleCollectionResolver) SetArch(arch *OSArch) *AnsibleCollectionRe
 	return acr
 }
 
+// IsBinary module or not
+func (arc AnsibleCollectionResolver) IsBinary() bool {
+	return arc.isbinary
+}
+
 // ResolveModuleByURI of the Ansible: collection or core plugin.
-func (acr AnsibleCollectionResolver) ResolveModuleByURI(module string) (string, error) {
+func (acr *AnsibleCollectionResolver) ResolveModuleByURI(module string) (string, error) {
 	moduleNamespace := strings.Split(module, ".")
 
 	if len(moduleNamespace) > 4 || len(moduleNamespace) < 3 {
@@ -146,6 +153,7 @@ func (acr *AnsibleCollectionResolver) resolveCollectionPlugin(collection, namesp
 	if _, err := os.Stat(binModPath); err == nil {
 		if _, err := os.Stat(binModWrapper); err == nil {
 			// is binary and compliant
+			acr.isbinary = true
 			return binModPath, nil
 		} else if os.IsNotExist(err) {
 			// is not compliant
