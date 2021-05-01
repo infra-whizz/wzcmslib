@@ -10,6 +10,7 @@ require (
 	github.com/google/uuid v1.2.0
 	github.com/infra-whizz/wzbox v0.0.0-20210223141646-d2405805b379 // indirect
 	github.com/infra-whizz/wzlib v0.0.0-20200622182529-c99727f3707a
+	github.com/isbm/go-shutil v0.0.0-20200707163617-60e3684d72ba
 	github.com/karrick/godirwalk v1.15.6
 	github.com/kr/text v0.2.0 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect

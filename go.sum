@@ -43,6 +43,8 @@ github.com/infra-whizz/wzbox v0.0.0-20210223141646-d2405805b379 h1:FowynJOT65oBz
 github.com/infra-whizz/wzbox v0.0.0-20210223141646-d2405805b379/go.mod h1:xlgKZlmvZUFaQqGdjPsCV+YRVHf/KZsbpxzhkWr/dNU=
 github.com/infra-whizz/wzlib v0.0.0-20200622182529-c99727f3707a h1:laKCAPdNJ8g2rd/bJokfiafZ2HDWvA0o5h+rSqfDQmk=
 github.com/infra-whizz/wzlib v0.0.0-20200622182529-c99727f3707a/go.mod h1:7P5fOIAr42zty8wqjZoU90GJz3ktpIJPjfFsbbDJdkc=
+github.com/isbm/go-shutil v0.0.0-20200707163617-60e3684d72ba h1:MfgFXC3iapL0LJ0qz25vCtwAy7V/339AAFVm4U0f2Dg=
+github.com/isbm/go-shutil v0.0.0-20200707163617-60e3684d72ba/go.mod h1:PdjRY3CFnbLvZn4wum+V01IBu25U7+8w5X2cdt3QWxE=
 github.com/jessevdk/go-flags v1.4.0/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
 github.com/jinzhu/gorm v1.9.12/go.mod h1:vhTjlKSJUTWNtcbQtrMBFCxy7eXTzeCAzfL5fBZT/Qs=
 github.com/jinzhu/inflection v1.0.0/go.mod h1:h+uFLlag+Qp1Va5pdKtLDYj+kHp5pxUVkryuEj+Srlc=
